@@ -36,8 +36,19 @@ class WelfordPredictor(BasePredictor):
     - 3-sigma: ~99.7% 置信区间
     """
 
+    # Sigma 倍数对应的置信水平
+    SIGMA_TO_CONFIDENCE = {
+        1.0: 0.68,
+        1.645: 0.90,
+        1.96: 0.95,
+        2.0: 0.9545,
+        2.576: 0.99,
+        3.0: 0.997,
+        3.5: 0.9995,
+    }
+
     # 置信水平对应的 sigma 倍数
-    SIGMA_MAPPING = {
+    CONFIDENCE_TO_SIGMA = {
         0.68: 1.0,
         0.90: 1.645,
         0.95: 1.96,
@@ -47,7 +58,8 @@ class WelfordPredictor(BasePredictor):
 
     def __init__(
         self,
-        confidence_level: float = 0.997,
+        sigma_multiplier: float = 3.0,
+        confidence_level: float = None,
         use_rolling_window: bool = False,
         window_size: int = 1440,
     ):
@@ -55,13 +67,23 @@ class WelfordPredictor(BasePredictor):
         初始化 Welford 预测器
 
         Args:
-            confidence_level: 置信水平（默认 0.997，对应 3-sigma）
+            sigma_multiplier: Sigma 倍数（默认 3.0，对应 99.7% 置信区间）
+            confidence_level: 置信水平（已废弃，使用 sigma_multiplier）
             use_rolling_window: 是否使用滚动窗口
             window_size: 滚动窗口大小（分钟）
         """
-        super().__init__(confidence_level=confidence_level)
+        # 兼容旧参数：如果提供了 confidence_level，计算 sigma_multiplier
+        if confidence_level is not None:
+            # 查找最接近的 sigma 倍数
+            sigma_multiplier = self._confidence_to_sigma(confidence_level)
+
+        self.sigma_multiplier = sigma_multiplier
         self.use_rolling_window = use_rolling_window
         self.window_size = window_size
+
+        # 计算对应的置信水平
+        cl = self._sigma_to_confidence(sigma_multiplier)
+        super().__init__(confidence_level=cl)
 
         # 统计量
         self._mean: float = 0.0
@@ -166,14 +188,28 @@ class WelfordPredictor(BasePredictor):
         )
 
     def _get_sigma_multiplier(self) -> float:
-        """根据置信水平获取 sigma 倍数"""
-        # 查找预定义的倍数
-        for cl, sigma in sorted(self.SIGMA_MAPPING.items()):
-            if self.confidence_level <= cl:
-                return sigma
+        """获取 sigma 倍数"""
+        return self.sigma_multiplier
 
+    @staticmethod
+    def _sigma_to_confidence(sigma: float) -> float:
+        """将 sigma 倍数转换为置信水平"""
+        # 查找预定义的置信水平
+        for s, cl in sorted(WelfordPredictor.SIGMA_TO_CONFIDENCE.items()):
+            if sigma <= s:
+                return cl
+        # 如果找不到，使用正态分布计算
+        return 2 * stats.norm.cdf(sigma) - 1
+
+    @staticmethod
+    def _confidence_to_sigma(confidence: float) -> float:
+        """将置信水平转换为 sigma 倍数"""
+        # 查找预定义的 sigma 倍数
+        for cl, sigma in sorted(WelfordPredictor.CONFIDENCE_TO_SIGMA.items()):
+            if confidence <= cl:
+                return sigma
         # 如果找不到，使用正态分布分位数计算
-        return stats.norm.ppf(1 - (1 - self.confidence_level) / 2)
+        return stats.norm.ppf(1 - (1 - confidence) / 2)
 
     @staticmethod
     def get_default_config(features: FeatureResult) -> dict:

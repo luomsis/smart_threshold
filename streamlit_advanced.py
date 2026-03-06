@@ -98,8 +98,113 @@ st.markdown("""
         display: inline-block;
         font-size: 0.9rem;
     }
+
+    /* Tooltip 样式 */
+    .tooltip-container {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        position: relative;
+    }
+    .tooltip-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #667eea;
+        color: white;
+        font-size: 11px;
+        font-weight: bold;
+        cursor: help;
+        position: relative;
+        flex-shrink: 0;
+    }
+    .tooltip-icon:hover {
+        background: #764ba2;
+    }
+    .tooltip-text {
+        position: absolute;
+        left: calc(100% + 8px);
+        top: 50%;
+        transform: translateY(-50%);
+        background: #333;
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 6px;
+        font-size: 12px;
+        line-height: 1.5;
+        white-space: normal;
+        min-width: 150px;
+        max-width: 300px;
+        width: max-content;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.2s, visibility 0.2s;
+        z-index: 1000;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .tooltip-container:hover .tooltip-text {
+        opacity: 1;
+        visibility: visible;
+    }
+    .tooltip-text::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        right: 100%;
+        transform: translateY(-50%);
+        border: 5px solid transparent;
+        border-right-color: #333;
+    }
+    .param-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.3rem 0;
+        gap: 1rem;
+    }
+    .param-label {
+        flex: 1;
+        font-weight: 500;
+    }
+    .param-value {
+        flex: 0 0 auto;
+        text-align: right;
+        font-weight: 600;
+        color: #667eea;
+    }
+    .param-label .tooltip-container {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
 </style>
 """, unsafe_allow_html=True)
+
+
+# ==================== 工具函数 ====================
+
+def tooltip(label: str, help_text: str) -> None:
+    """
+    显示带悬停提示的标签
+
+    Args:
+        label: 标签文本
+        help_text: 悬停显示的帮助文本
+    """
+    tooltip_html = f"""
+    <div style="display: inline-flex; align-items: center; gap: 6px;">
+        {label}
+        <div class="tooltip-container">
+            <span class="tooltip-icon">?</span>
+            <span class="tooltip-text">{help_text}</span>
+        </div>
+    </div>
+    """
+    st.markdown(tooltip_html, unsafe_allow_html=True)
 
 
 # ==================== Session State 初始化 ====================
@@ -228,7 +333,7 @@ def create_comparison_chart(
     manager = get_model_config_manager()
     for model_id in visible_model_ids:
         result = results.get(model_id)
-        if result and result.get('success') and result.get('prediction'):
+        if result and result.get('success') and result.get('prediction') is not None:
             pred = result['prediction']
             config = manager.get_config(model_id)
 
@@ -681,37 +786,99 @@ def render_dashboard():
 
                 config = manager.get_config(st.session_state.editing_model_id)
 
-                col1, col2 = st.columns([1, 1])
+                st.markdown(f"**{config.name}** - {config.description}")
 
-                with col1:
-                    st.markdown(f"**{config.name}**")
-                    st.caption(config.description)
+                if config.category == TemplateCategory.SYSTEM:
+                    st.info("📌 系统预设模型，修改后需另存为新模型")
 
-                    if config.category == TemplateCategory.SYSTEM:
-                        st.info("📌 系统预设模型，修改后需另存为新模型")
+                st.markdown("---")
 
-                with col2:
-                    st.markdown("**参数编辑**")
+                # 参数编辑区域
+                modified_params = {}
 
-                    modified_params = {}
+                if config.model_type == ModelType.PROPHET:
+                    # Prophet 参数帮助信息
+                    prophet_help = {
+                        'daily_seasonality': '是否启用24小时周期模式。适合白天/夜间差异明显的数据（如网站访问量）',
+                        'weekly_seasonality': '是否启用7天周期模式。适合工作日/周末差异明显的数据（如办公系统负载）',
+                        'changepoint_prior_scale': '控制趋势变化点的灵活性。0.001-0.01保守，0.05-0.1推荐，0.2-0.5灵活',
+                        'seasonality_prior_scale': '控制季节性效应的强度。1-5弱，10-20适中（推荐10），25-50强',
+                        'interval_width': '预测不确定性区间宽度。0.68窄，0.80平衡，0.95宽',
+                        'n_changepoints': '趋势变化点数量。5-10保守，15-25适中（推荐25），30-100灵活',
+                        'seasonality_mode': '季节性模式。additive=加性(恒定振幅)，multiplicative=乘性(相对振幅)',
+                        'holidays_prior_scale': '节假日效应强度。1-5小，10-20推荐，25-50大',
+                        'changepoint_range': '变点可能出现的比例范围。0.5-0.7保守，0.8-0.9推荐，0.95-1.0敏感',
+                    }
 
-                    if config.model_type == ModelType.PROPHET:
-                        modified_params['daily_seasonality'] = st.checkbox("日季节性", config.daily_seasonality)
-                        modified_params['weekly_seasonality'] = st.checkbox("周季节性", config.weekly_seasonality)
-                        modified_params['changepoint_prior_scale'] = st.slider("变化点先验", 0.001, 0.5, config.changepoint_prior_scale, 0.001)
-                        modified_params['seasonality_prior_scale'] = st.slider("季节性先验", 1.0, 50.0, config.seasonality_prior_scale, 0.5)
-                        modified_params['interval_width'] = st.slider("置信区间", 0.1, 0.99, config.interval_width, 0.01)
-                        modified_params['n_changepoints'] = st.slider("变化点数", 5, 50, config.n_changepoints, 1)
+                    # 季节性模式
+                    tooltip("季节性模式", prophet_help['seasonality_mode'])
+                    season_mode = st.selectbox("", ["additive", "multiplicative"],
+                        index=["additive", "multiplicative"].index(config.seasonality_mode), label_visibility="collapsed")
+                    modified_params['seasonality_mode'] = season_mode
 
-                    elif config.model_type == ModelType.WELFORD:
-                        modified_params['sigma_multiplier'] = st.slider("Sigma 倍数", 1.0, 5.0, config.sigma_multiplier, 0.1)
-                        modified_params['use_rolling_window'] = st.checkbox("滚动窗口", config.use_rolling_window)
-                        if modified_params['use_rolling_window']:
-                            modified_params['window_size'] = st.slider("窗口大小", 60, 10080, config.window_size or 1440, 60)
+                    # 变化点参数
+                    tooltip("变化点数量", prophet_help['n_changepoints'])
+                    n_cp = st.slider("", 5, 50, config.n_changepoints, 1, label_visibility="collapsed")
+                    modified_params['n_changepoints'] = n_cp
 
-                    elif config.model_type == ModelType.STATIC:
-                        modified_params['upper_percentile'] = st.slider("上限百分位", 90.0, 100.0, config.upper_percentile, 0.5)
-                        modified_params['lower_bound'] = st.slider("下限值", 0.0, 100.0, config.lower_bound, 1.0)
+                    tooltip("变化点灵活性", prophet_help['changepoint_prior_scale'])
+                    cp_prior = st.slider("", 0.001, 0.5, config.changepoint_prior_scale, 0.001, label_visibility="collapsed", format="%.3f")
+                    modified_params['changepoint_prior_scale'] = cp_prior
+
+                    # 季节性参数
+                    tooltip("日季节性", prophet_help['daily_seasonality'])
+                    daily = st.checkbox("", config.daily_seasonality, label_visibility="collapsed")
+                    modified_params['daily_seasonality'] = daily
+
+                    tooltip("周季节性", prophet_help['weekly_seasonality'])
+                    weekly = st.checkbox("", config.weekly_seasonality, label_visibility="collapsed")
+                    modified_params['weekly_seasonality'] = weekly
+
+                    tooltip("季节性强度", prophet_help['seasonality_prior_scale'])
+                    season_prior = st.slider("", 1.0, 50.0, config.seasonality_prior_scale, 0.5, label_visibility="collapsed")
+                    modified_params['seasonality_prior_scale'] = season_prior
+
+                    tooltip("置信区间", prophet_help['interval_width'])
+                    interval = st.slider("", 0.1, 0.99, config.interval_width, 0.01, label_visibility="collapsed", format="%.2f")
+                    modified_params['interval_width'] = interval
+
+                elif config.model_type == ModelType.WELFORD:
+                    # Welford 参数帮助信息
+                    welford_help = {
+                        'sigma_multiplier': 'Sigma倍数控制阈值宽度。1.5-2.5敏感，3推荐，3.5-4宽松',
+                        'use_rolling_window': '是否使用滚动窗口。适合有趋势的数据，能适应变化',
+                        'window_size': '滚动窗口大小（分钟）。60-360短期，720-1440中期，2880+长期',
+                    }
+
+                    # Sigma 倍数
+                    tooltip("Sigma 倍数", welford_help['sigma_multiplier'])
+                    sigma = st.slider("", 1.0, 5.0, config.sigma_multiplier, 0.1, label_visibility="collapsed")
+                    modified_params['sigma_multiplier'] = sigma
+
+                    # 滚动窗口
+                    tooltip("启用滚动窗口", welford_help['use_rolling_window'])
+                    use_rolling = st.checkbox("", config.use_rolling_window, label_visibility="collapsed")
+                    modified_params['use_rolling_window'] = use_rolling
+
+                    if use_rolling:
+                        tooltip("窗口大小(分钟)", welford_help['window_size'])
+                        window = st.slider("", 60, 10080, config.window_size or 1440, 60, label_visibility="collapsed")
+                        modified_params['window_size'] = window
+
+                elif config.model_type == ModelType.STATIC:
+                    # Static 参数帮助信息
+                    static_help = {
+                        'upper_percentile': '上限百分位数。90-95敏感，97-99适中（推荐99），99.5-100只检测极值',
+                        'lower_bound': '下限值。通常为0（计数类指标不能为负）',
+                    }
+
+                    tooltip("上限百分位", static_help['upper_percentile'])
+                    percentile = st.slider("", 90.0, 100.0, config.upper_percentile, 0.5, label_visibility="collapsed")
+                    modified_params['upper_percentile'] = percentile
+
+                    tooltip("下限值", static_help['lower_bound'])
+                    lower = st.slider("", 0.0, 100.0, config.lower_bound, 1.0, label_visibility="collapsed")
+                    modified_params['lower_bound'] = lower
 
                 col_a, col_b = st.columns(2)
                 with col_a:
@@ -729,22 +896,66 @@ def render_dashboard():
                             name=config.name,
                             description=config.description,
                             model_type=config.model_type,
-                            category=config.category,
+                            category=TemplateCategory.CUSTOM,
                             **modified_params
                         )
 
-                        with st.spinner("正在预测..."):
-                            results = run_model_comparison(
-                                data,
-                                train_start,
-                                train_end,
-                                ["temp"]
-                            )
+                        # 临时添加到 manager
+                        manager = get_model_config_manager()
+                        manager._configs["temp"] = temp_config
 
-                            if results['temp']['success']:
-                                st.success(f"✅ MAPE: {results['temp']['mape']:.2f}%")
-                            else:
-                                st.error(f"❌ 预测失败: {results['temp']['error']}")
+                        with st.spinner("正在预测..."):
+                            try:
+                                results = run_model_comparison(
+                                    data,
+                                    train_start,
+                                    train_end,
+                                    ["temp"]
+                                )
+
+                                if "temp" in results and results['temp']['success']:
+                                    st.success(f"✅ MAPE: {results['temp']['mape']:.2f}%")
+                                    # 显示预测结果
+                                    prediction = results['temp']['prediction']
+                                    fig = go.Figure()
+                                    fig.add_trace(go.Scatter(
+                                        x=prediction.index,
+                                        y=prediction['yhat'],
+                                        mode='lines',
+                                        name='预测值',
+                                        line=dict(color='#4ECDC4')
+                                    ))
+                                    fig.add_trace(go.Scatter(
+                                        x=prediction.index,
+                                        y=prediction['yhat_upper'],
+                                        mode='lines',
+                                        name='上限',
+                                        line=dict(color='#FF6B6B', dash='dash'),
+                                        fill=None
+                                    ))
+                                    fig.add_trace(go.Scatter(
+                                        x=prediction.index,
+                                        y=prediction['yhat_lower'],
+                                        mode='lines',
+                                        name='下限',
+                                        line=dict(color='#FF6B6B', dash='dash'),
+                                        fill='tonexty',
+                                        fillcolor='rgba(255, 107, 107, 0.1)'
+                                    ))
+                                    fig.update_layout(
+                                        title="预测结果",
+                                        xaxis_title="时间",
+                                        yaxis_title="值",
+                                        height=300,
+                                        hovermode='x unified'
+                                    )
+                                    st.plotly_chart(fig, use_container_width=True)
+                                else:
+                                    error_msg = results.get('temp', {}).get('error', '未知错误')
+                                    st.error(f"❌ 预测失败: {error_msg}")
+                            finally:
+                                # 清理临时配置
+                                manager._configs.pop("temp", None)
 
                 # 保存为新模型
                 if config.category == TemplateCategory.SYSTEM or st.session_state.editing_model_id != config.id:
@@ -774,6 +985,76 @@ def render_dashboard():
                             st.success(f"✅ 模型保存成功！ID: {new_id}")
                         else:
                             st.error(f"❌ 保存失败")
+
+
+def _display_model_params(model: ModelConfig) -> None:
+    """显示模型参数配置（只读，带悬停提示）"""
+    params = model.get_params()
+
+    # 参数帮助信息（与参数优化页面保持一致）
+    prophet_help = {
+        'daily_seasonality': '是否启用24小时周期模式。适合白天/夜间差异明显的数据（如网站访问量）',
+        'weekly_seasonality': '是否启用7天周期模式。适合工作日/周末差异明显的数据（如办公系统负载）',
+        'changepoint_prior_scale': '控制趋势变化点的灵活性。0.001-0.01保守，0.05-0.1推荐，0.2-0.5灵活',
+        'seasonality_prior_scale': '控制季节性效应的强度。1-5弱，10-20适中（推荐10），25-50强',
+        'interval_width': '预测不确定性区间宽度。0.68窄，0.80平衡，0.95宽',
+        'n_changepoints': '趋势变化点数量。5-10保守，15-25适中（推荐25），30-100灵活',
+        'seasonality_mode': '季节性模式。additive=加性(恒定振幅)，multiplicative=乘性(相对振幅)',
+        'holidays_prior_scale': '节假日效应强度。1-5小，10-20推荐，25-50大',
+        'changepoint_range': '变点可能出现的比例范围。0.5-0.7保守，0.8-0.9推荐，0.95-1.0敏感',
+    }
+
+    welford_help = {
+        'sigma_multiplier': 'Sigma倍数控制阈值宽度。1.5-2.5敏感，3推荐，3.5-4宽松',
+        'use_rolling_window': '是否使用滚动窗口。适合有趋势的数据，能适应变化',
+        'window_size': '滚动窗口大小（分钟）。60-360短期，720-1440中期，2880+长期',
+    }
+
+    static_help = {
+        'upper_percentile': '上限百分位数。90-95敏感，97-99适中（推荐99），100=最大值',
+        'lower_bound': '下限值。计数类指标通常为0，其他根据业务需求设定',
+    }
+
+    def param_with_tooltip(label: str, value: str, help_text: str):
+        """显示带悬停提示的参数行"""
+        html = f"""
+        <div class="param-row">
+            <div class="param-label">
+                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                    {label}
+                    <div class="tooltip-container">
+                        <span class="tooltip-icon">?</span>
+                        <span class="tooltip-text">{help_text}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="param-value">{value}</div>
+        </div>
+        """
+        st.markdown(html, unsafe_allow_html=True)
+
+    if model.model_type == ModelType.PROPHET:
+        # 显示 Prophet 参数
+        param_with_tooltip("季节性模式", params.get('seasonality_mode', 'additive'), prophet_help['seasonality_mode'])
+        param_with_tooltip("变化点数量", str(params.get('n_changepoints', 25)), prophet_help['n_changepoints'])
+        param_with_tooltip("变化点灵活性", f"{params.get('changepoint_prior_scale', 0.05):.3f}", prophet_help['changepoint_prior_scale'])
+        param_with_tooltip("季节性强度", f"{params.get('seasonality_prior_scale', 10.0):.1f}", prophet_help['seasonality_prior_scale'])
+        param_with_tooltip("置信区间", f"{params.get('interval_width', 0.95):.2f}", prophet_help['interval_width'])
+        param_with_tooltip("日季节性", "✅" if params.get('daily_seasonality') else "❌", prophet_help['daily_seasonality'])
+        param_with_tooltip("周季节性", "✅" if params.get('weekly_seasonality') else "❌", prophet_help['weekly_seasonality'])
+
+    elif model.model_type == ModelType.WELFORD:
+        # 显示 Welford 参数
+        param_with_tooltip("Sigma 倍数", f"{params.get('sigma_multiplier', 3.0):.1f}", welford_help['sigma_multiplier'])
+        rolling = params.get('use_rolling_window', False)
+        param_with_tooltip("滚动窗口", "✅ 启用" if rolling else "❌ 禁用", welford_help['use_rolling_window'])
+        if rolling and params.get('window_size'):
+            param_with_tooltip("窗口大小", f"{params['window_size']} 分钟", welford_help['window_size'])
+
+    elif model.model_type == ModelType.STATIC:
+        # 显示 Static 参数
+        param_with_tooltip("上限百分位", f"{params.get('upper_percentile', 99.0):.1f}%", static_help['upper_percentile'])
+        param_with_tooltip("下限值", f"{params.get('lower_bound', 0.0):.1f}", static_help['lower_bound'])
 
 
 def render_models():
@@ -813,9 +1094,8 @@ def render_models():
             with col2:
                 st.markdown(f"**颜色**: {model.color}")
 
-            st.markdown("**参数**:")
-            with st.expander("查看参数"):
-                st.json(model.get_params())
+            st.markdown("**参数配置**:")
+            _display_model_params(model)
 
     # 自定义模型
     st.markdown("## 🎨 自定义模型")
@@ -832,19 +1112,18 @@ def render_models():
                     st.markdown(f"**标签**: {', '.join(model.tags)}")
 
                 with col2:
-                    if st.button("编辑", key=f"edit_{model.id}"):
+                    if st.button("✏️ 编辑", key=f"edit_{model.id}", use_container_width=True):
                         st.session_state.editing_model_id = model.id
                         st.rerun()
 
                 with col3:
-                    if st.button("删除", key=f"delete_{model.id}"):
+                    if st.button("🗑️ 删除", key=f"delete_{model.id}", use_container_width=True):
                         if manager.delete_config(model.id):
                             st.success(f"已删除 {model.name}")
                             st.rerun()
 
-                st.markdown("**参数**:")
-                with st.expander("查看参数"):
-                    st.json(model.get_params())
+                st.markdown("**参数配置**:")
+                _display_model_params(model)
     else:
         st.info("还没有自定义模型，请到仪表盘页面创建")
 
