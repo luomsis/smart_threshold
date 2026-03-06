@@ -1,0 +1,46 @@
+# SmartThreshold 默认配置文件
+# 可以通过创建自定义配置文件来覆盖这些值
+
+algorithms:
+  # Prophet 预测器配置
+  # 适合：具有明显季节性的数据（如 QPS）
+  prophet:
+    daily_seasonality: true
+    weekly_seasonality: false
+    yearly_seasonality: false
+    seasonality_mode: additive  # 'additive' 或 'multiplicative'
+    interval_width: 0.95        # 置信区间宽度
+    n_changepoints: 25          # 趋势变化点数量
+    changepoint_range: 0.8      # 变化点范围（0-1）
+    changepoint_prior_scale: 0.05  # 变化点先验尺度（越大越灵活）
+    seasonality_prior_scale: 10.0   # 季节性先验尺度
+    holidays_prior_scale: 10.0      # 节假日先验尺度
+    mcmc_samples: 0               # MCMC 采样数（0=不使用）
+
+  # Welford 3-Sigma 预测器配置
+  # 适合：高波动、无周期的数据（如 RT）
+  welford:
+    confidence_level: 0.997     # 置信水平（对应 3-sigma）
+    sigma_multiplier: 3.0       # Sigma 倍数
+    use_rolling_window: false   # 是否使用滚动窗口
+    window_size: 1440           # 滚动窗口大小（分钟）
+
+  # Static 百分位数预测器配置
+  # 适合：稀疏/低频数据（如错误计数）
+  static:
+    upper_percentile: 99.0      # 上限百分位数
+    confidence_level: 0.99      # 置信水平
+    lower_bound: 0.0            # 下限值
+
+# 回测优化配置
+backtest:
+  enabled: true                # 是否启用自动优化
+  scan_range: [1.5, 4.0]      # Sigma 扫描范围
+  scan_step: 0.1               # 扫描步长
+  target_coverage: 0.98        # 目标历史覆盖率
+  max_anomaly_rate: 0.02       # 最大异常率
+
+# 路由器配置
+router:
+  seasonality_threshold: 0.3   # 季节性判定阈值（ACF）
+  sparsity_threshold: 0.8      # 稀疏性判定阈值
