@@ -170,118 +170,124 @@ st.markdown("""
     [data-testid="stMarkdown"] p {
         margin-bottom: 0.25rem;
     }
-    .param-table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-        margin-top: 1rem;
+    /* 参数表格样式 - 使用更高优先级选择器 */
+    div[data-testid="stMarkdown"] table.param-table {
+        width: 100% !important;
+        border-collapse: separate !important;
+        border-spacing: 0 !important;
+        margin-top: 1rem !important;
+        border: none !important;
     }
-    .param-table th {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 0.8rem 1rem;
-        text-align: left;
-        font-weight: 600;
-        font-size: 0.9rem;
-        letter-spacing: 0.5px;
+    div[data-testid="stMarkdown"] table.param-table th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+        padding: 0.8rem 1rem !important;
+        text-align: left !important;
+        font-weight: 600 !important;
+        font-size: 0.9rem !important;
+        letter-spacing: 0.5px !important;
+        border: none !important;
     }
-    .param-table th:first-child {
-        border-radius: 10px 0 0 0;
+    div[data-testid="stMarkdown"] table.param-table th:first-child {
+        border-radius: 10px 0 0 0 !important;
     }
-    .param-table th:last-child {
-        border-radius: 0 10px 0 0;
+    div[data-testid="stMarkdown"] table.param-table th:last-child {
+        border-radius: 0 10px 0 0 !important;
     }
-    .param-table td {
-        padding: 0.75rem 1rem;
-        border-bottom: 1px solid #f0f0f0;
+    div[data-testid="stMarkdown"] table.param-table td {
+        padding: 0.75rem 1rem !important;
+        border-bottom: 1px solid #f0f0f0 !important;
+        border: none !important;
     }
-    .param-table tr:last-child td:first-child {
-        border-radius: 0 0 0 10px;
+    div[data-testid="stMarkdown"] table.param-table tr:last-child td:first-child {
+        border-radius: 0 0 0 10px !important;
     }
-    .param-table tr:last-child td:last-child {
-        border-radius: 0 0 10px 0;
+    div[data-testid="stMarkdown"] table.param-table tr:last-child td:last-child {
+        border-radius: 0 0 10px 0 !important;
     }
-    .param-table tbody tr:hover {
-        background: #f8f9ff;
+    div[data-testid="stMarkdown"] table.param-table tbody tr:hover {
+        background: #f8f9ff !important;
     }
-    .param-table td:first-child {
-        font-weight: 500;
-        color: #555;
-        font-size: 0.9rem;
+    div[data-testid="stMarkdown"] table.param-table td:first-child {
+        font-weight: 500 !important;
+        color: #555 !important;
+        font-size: 0.9rem !important;
     }
-    .param-table td:last-child {
-        text-align: center;
-        background: #fafafa;
+    div[data-testid="stMarkdown"] table.param-table td:last-child {
+        text-align: center !important;
+        background: #fafafa !important;
     }
-    .digit-box {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 60px;
-        height: 36px;
-        padding: 0 12px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border-radius: 8px;
-        font-weight: 700;
-        font-size: 1.1rem;
-        box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        letter-spacing: 0.5px;
+    /* 数字方框样式 */
+    span.digit-box {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-width: 60px !important;
+        height: 36px !important;
+        padding: 0 12px !important;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+        border-radius: 8px !important;
+        font-weight: 700 !important;
+        font-size: 1.1rem !important;
+        box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+        letter-spacing: 0.5px !important;
+        margin: 0 !important;
     }
-    .digit-box.secondary {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-        box-shadow: 0 3px 10px rgba(40, 167, 69, 0.3),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    span.digit-box.secondary {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+        box-shadow: 0 3px 10px rgba(40, 167, 69, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
     }
-    .digit-box.string {
-        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
-        box-shadow: 0 3px 10px rgba(23, 162, 184, 0.3),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        font-size: 0.95rem;
-        font-weight: 600;
-        min-width: auto;
+    span.digit-box.string {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%) !important;
+        box-shadow: 0 3px 10px rgba(23, 162, 184, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+        font-size: 0.95rem !important;
+        font-weight: 600 !important;
+        min-width: auto !important;
     }
-    .check-box {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        border-radius: 6px;
-        font-weight: bold;
-        font-size: 16px;
-        transition: all 0.2s ease;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    /* 勾选框样式 */
+    span.check-box {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 28px !important;
+        height: 28px !important;
+        border-radius: 6px !important;
+        font-weight: bold !important;
+        font-size: 16px !important;
+        transition: all 0.2s ease !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+        margin: 0 !important;
     }
-    .check-box.checked {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-        color: white;
+    span.check-box.checked {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+        color: white !important;
     }
-    .check-box.unchecked {
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-        color: white;
+    span.check-box.unchecked {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%) !important;
+        color: white !important;
     }
-    .bool-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-weight: 600;
-        font-size: 0.9rem;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    /* 胶囊样式 */
+    span.bool-pill {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        padding: 6px 14px !important;
+        border-radius: 20px !important;
+        font-weight: 600 !important;
+        font-size: 0.9rem !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+        margin: 0 !important;
     }
-    .bool-pill.enabled {
-        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-        color: #155724;
-        border: 1px solid #b8dabc;
+    span.bool-pill.enabled {
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%) !important;
+        color: #155724 !important;
+        border: 1px solid #b8dabc !important;
     }
-    .bool-pill.disabled {
-        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
-        color: #721c24;
-        border: 1px solid #f1b2b7;
+    span.bool-pill.disabled {
+        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%) !important;
+        color: #721c24 !important;
+        border: 1px solid #f1b2b7 !important;
     }
 </style>
 """, unsafe_allow_html=True)

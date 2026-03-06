@@ -1057,6 +1057,222 @@ def _display_model_params(model: ModelConfig) -> None:
         param_with_tooltip("下限值", f"{params.get('lower_bound', 0.0):.1f}", static_help['lower_bound'])
 
 
+def _editable_model_params(model: ModelConfig) -> None:
+    """显示可编辑的模型参数配置，带保存为新模型功能"""
+    params = model.get_params()
+
+    # 参数帮助信息
+    prophet_help = {
+        'seasonality_mode': '季节性模式。additive=加性(恒定振幅)，multiplicative=乘性(相对振幅)',
+        'n_changepoints': '趋势变化点数量。5-10保守，15-25适中（推荐25），30-100灵活',
+        'changepoint_prior_scale': '控制趋势变化点的灵活性。0.001-0.01保守，0.05-0.1推荐，0.2-0.5灵活',
+        'seasonality_prior_scale': '控制季节性效应的强度。1-5弱，10-20适中（推荐10），25-50强',
+        'interval_width': '预测不确定性区间宽度。0.68窄，0.80平衡，0.95宽',
+        'daily_seasonality': '是否启用24小时周期模式。适合白天/夜间差异明显的数据',
+        'weekly_seasonality': '是否启用7天周期模式。适合工作日/周末差异明显的数据',
+    }
+
+    welford_help = {
+        'sigma_multiplier': 'Sigma倍数控制阈值宽度。1.5-2.5敏感，3推荐，3.5-4宽松',
+        'use_rolling_window': '是否使用滚动窗口。适合有趋势的数据',
+        'window_size': '滚动窗口大小（分钟）。60-360短期，720-1440中期，2880+长期',
+    }
+
+    static_help = {
+        'upper_percentile': '上限百分位数。90-95敏感，97-99适中（推荐99），100=最大值',
+        'lower_bound': '下限值。计数类指标通常为0，其他根据业务需求设定',
+    }
+
+    # 创建唯一的 session state key
+    edit_key = f"edit_params_{model.id}"
+
+    # 初始化编辑状态
+    if edit_key not in st.session_state:
+        st.session_state[edit_key] = {
+            'editing': False,
+            'params': params.copy()
+        }
+
+    edit_state = st.session_state[edit_key]
+
+    # 编辑按钮
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col1:
+        if not edit_state['editing']:
+            if st.button("✏️ 编辑参数", key=f"btn_edit_{model.id}", use_container_width=True):
+                edit_state['editing'] = True
+                edit_state['params'] = params.copy()
+                st.rerun()
+        else:
+            if st.button("❌ 取消", key=f"btn_cancel_{model.id}", use_container_width=True):
+                edit_state['editing'] = False
+                st.rerun()
+
+    if not edit_state['editing']:
+        # 显示模式 - 使用原有的显示函数
+        _display_model_params(model)
+    else:
+        # 编辑模式
+        st.info("📝 编辑参数中，修改后点击保存创建新模型")
+
+        modified_params = {}
+
+        if model.model_type == ModelType.PROPHET:
+            # 季节性模式
+            tooltip("季节性模式", prophet_help['seasonality_mode'])
+            season_mode = st.selectbox(
+                "", ["additive", "multiplicative"],
+                index=["additive", "multiplicative"].index(params.get('seasonality_mode', 'additive')),
+                label_visibility="collapsed",
+                key=f"{edit_key}_season_mode"
+            )
+            modified_params['seasonality_mode'] = season_mode
+
+            # 变化点数量
+            tooltip("变化点数量", prophet_help['n_changepoints'])
+            n_cp = st.slider(
+                "", 5, 50, params.get('n_changepoints', 25), 1,
+                label_visibility="collapsed",
+                key=f"{edit_key}_n_cp"
+            )
+            modified_params['n_changepoints'] = n_cp
+
+            # 变化点灵活性
+            tooltip("变化点灵活性", prophet_help['changepoint_prior_scale'])
+            cp_prior = st.slider(
+                "", 0.001, 0.5, params.get('changepoint_prior_scale', 0.05), 0.001,
+                label_visibility="collapsed",
+                key=f"{edit_key}_cp_prior",
+                format="%.3f"
+            )
+            modified_params['changepoint_prior_scale'] = cp_prior
+
+            # 季节性强度
+            tooltip("季节性强度", prophet_help['seasonality_prior_scale'])
+            season_prior = st.slider(
+                "", 1.0, 50.0, params.get('seasonality_prior_scale', 10.0), 0.5,
+                label_visibility="collapsed",
+                key=f"{edit_key}_season_prior"
+            )
+            modified_params['seasonality_prior_scale'] = season_prior
+
+            # 置信区间
+            tooltip("置信区间", prophet_help['interval_width'])
+            interval = st.slider(
+                "", 0.1, 0.99, params.get('interval_width', 0.95), 0.01,
+                label_visibility="collapsed",
+                key=f"{edit_key}_interval",
+                format="%.2f"
+            )
+            modified_params['interval_width'] = interval
+
+            # 日季节性
+            tooltip("日季节性", prophet_help['daily_seasonality'])
+            daily = st.checkbox(
+                "启用", params.get('daily_seasonality', True),
+                key=f"{edit_key}_daily"
+            )
+            modified_params['daily_seasonality'] = daily
+
+            # 周季节性
+            tooltip("周季节性", prophet_help['weekly_seasonality'])
+            weekly = st.checkbox(
+                "启用", params.get('weekly_seasonality', False),
+                key=f"{edit_key}_weekly"
+            )
+            modified_params['weekly_seasonality'] = weekly
+
+        elif model.model_type == ModelType.WELFORD:
+            # Sigma 倍数
+            tooltip("Sigma 倍数", welford_help['sigma_multiplier'])
+            sigma = st.slider(
+                "", 1.0, 5.0, params.get('sigma_multiplier', 3.0), 0.1,
+                label_visibility="collapsed",
+                key=f"{edit_key}_sigma",
+                format="%.1f"
+            )
+            modified_params['sigma_multiplier'] = sigma
+
+            # 滚动窗口
+            tooltip("滚动窗口", welford_help['use_rolling_window'])
+            use_rolling = st.checkbox(
+                "启用", params.get('use_rolling_window', False),
+                key=f"{edit_key}_rolling"
+            )
+            modified_params['use_rolling_window'] = use_rolling
+
+            # 窗口大小
+            if use_rolling:
+                tooltip("窗口大小", welford_help['window_size'])
+                window_size = st.slider(
+                    "", 60, 10080, params.get('window_size', 1440), 60,
+                    label_visibility="collapsed",
+                    key=f"{edit_key}_window"
+                )
+                modified_params['window_size'] = window_size
+
+        elif model.model_type == ModelType.STATIC:
+            # 上限百分位
+            tooltip("上限百分位", static_help['upper_percentile'])
+            percentile = st.slider(
+                "", 90.0, 100.0, params.get('upper_percentile', 99.0), 0.5,
+                label_visibility="collapsed",
+                key=f"{edit_key}_percentile",
+                format="%.1f"
+            )
+            modified_params['upper_percentile'] = percentile
+
+            # 下限值
+            tooltip("下限值", static_help['lower_bound'])
+            lower_bound = st.slider(
+                "", 0.0, 100.0, params.get('lower_bound', 0.0), 1.0,
+                label_visibility="collapsed",
+                key=f"{edit_key}_lower"
+            )
+            modified_params['lower_bound'] = lower_bound
+
+        # 保存按钮
+        st.markdown("---")
+        col1, col2 = st.columns(2)
+
+        with col1:
+            new_name = st.text_input(
+                "新模型名称",
+                value=f"{model.name} (自定义)",
+                key=f"{edit_key}_new_name"
+            )
+
+        with col2:
+            new_desc = st.text_input(
+                "描述",
+                value=f"基于 {model.name} 修改",
+                key=f"{edit_key}_new_desc"
+            )
+
+        if st.button("💾 保存为新模型", key=f"btn_save_{model.id}", type="primary", use_container_width=True):
+            manager = get_model_config_manager()
+            new_id = f"custom_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+            new_config = ModelConfig(
+                id=new_id,
+                name=new_name,
+                description=new_desc,
+                model_type=model.model_type,
+                category=TemplateCategory.CUSTOM,
+                author="user",
+                color=model.color,
+                tags=["自定义", f"基于{model.name}"],
+                **modified_params
+            )
+
+            if manager.add_config(new_config):
+                st.success(f"✅ 模型保存成功！新模型: {new_name}")
+                edit_state['editing'] = False
+                st.rerun()
+            else:
+                st.error(f"❌ 保存失败")
+
+
 def render_models():
     """渲染模型管理页面"""
     st.markdown('<div class="main-header"><h1>🤖 模型管理</h1></div>', unsafe_allow_html=True)
@@ -1095,7 +1311,9 @@ def render_models():
                 st.markdown(f"**颜色**: {model.color}")
 
             st.markdown("**参数配置**:")
-            _display_model_params(model)
+
+            # 使用可编辑的参数编辑器
+            _editable_model_params(model)
 
     # 自定义模型
     st.markdown("## 🎨 自定义模型")
