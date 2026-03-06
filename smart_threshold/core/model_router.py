@@ -15,11 +15,9 @@ import pandas as pd
 
 from smart_threshold.core.feature_analyzer import FeatureExtractor, FeatureResult
 from smart_threshold.core.predictors.base import BasePredictor, PredictionResult
-from smart_threshold.core.predictors.prophet_predictor import ProphetPredictor
-from smart_threshold.core.predictors.welford_predictor import WelfordPredictor
-from smart_threshold.core.predictors.static_predictor import StaticPredictor
+from smart_threshold.core.predictors.factory import PredictorFactory, PredictorType
 from smart_threshold.config import ConfigManager
-from smart_threshold.core.backtest_optimizer import BacktestOptimizer
+from smart_threshold.core.param_optimizer import ParamOptimizer
 
 
 class AlgorithmType(Enum):
@@ -28,6 +26,11 @@ class AlgorithmType(Enum):
     PROPHET = "prophet"
     WELFORD = "welford"
     STATIC = "static"
+
+    # 映射到 PredictorType
+    def to_predictor_type(self) -> str:
+        """转换为 PredictorType"""
+        return self.value
 
 
 class ModelRouter:
@@ -74,10 +77,10 @@ class ModelRouter:
         self.config_manager = ConfigManager(config_path=config_path, config_dict=config_dict)
         self.enable_auto_optimize = enable_auto_optimize
 
-        # 回测优化器
+        # 参数优化器
         if enable_auto_optimize:
             backtest_config = self.config_manager.get_backtest_config()
-            self.optimizer = BacktestOptimizer(
+            self.optimizer = ParamOptimizer(
                 scan_range=tuple(backtest_config.get("scan_range", [1.5, 4.0])),
                 scan_step=backtest_config.get("scan_step", 0.1),
                 target_coverage=backtest_config.get("target_coverage", 0.98),
@@ -264,7 +267,7 @@ class ModelRouter:
         self, algorithm: AlgorithmType, **kwargs
     ) -> BasePredictor:
         """
-        创建预测器实例
+        创建预测器实例（使用工厂模式）
 
         Args:
             algorithm: 算法类型
@@ -273,19 +276,9 @@ class ModelRouter:
         Returns:
             BasePredictor: 预测器实例
         """
-        if algorithm == AlgorithmType.PROPHET:
-            return ProphetPredictor(**kwargs)
-        elif algorithm == AlgorithmType.WELFORD:
-            # 处理 sigma_multiplier 到 confidence_level 的转换
-            if "sigma_multiplier" in kwargs:
-                sigma = kwargs.pop("sigma_multiplier")
-                # 简化：直接使用 sigma_multiplier，忽略 confidence_level
-                kwargs["confidence_level"] = 0.997  # 默认值
-            return WelfordPredictor(**kwargs)
-        elif algorithm == AlgorithmType.STATIC:
-            return StaticPredictor(**kwargs)
-        else:
-            raise ValueError(f"未知的算法类型: {algorithm}")
+        # 使用工厂创建预测器，降低耦合
+        predictor_type = algorithm.to_predictor_type()
+        return PredictorFactory.create(predictor_type, **kwargs)
 
     def _log_selection(
         self, features: FeatureResult, algorithm: AlgorithmType
