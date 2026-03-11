@@ -1,0 +1,239 @@
+/* Grafana Dark Theme */
+
+:root {
+    /* Background Colors */
+    --bg-primary: #0b0c0e;
+    --bg-secondary: #141417;
+    --bg-tertiary: #1a1d21;
+    --bg-canvas: #111115;
+
+    /* Border Colors */
+    --border-color: #30363d;
+    --border-color-light: #3d444d;
+
+    /* Text Colors */
+    --text-primary: #e6e8eb;
+    --text-secondary: #8b9199;
+    --text-link: #56a4ff;
+
+    /* Primary Color */
+    --primary-color: #56a4ff;
+    --primary-color-hover: #3d8bfd;
+    --primary-color-alpha: rgba(86, 164, 255, 0.15);
+
+    /* Success Color */
+    --success-color: #73d13d;
+    --success-color-hover: #52c41a;
+
+    /* Warning Color */
+    --warning-color: #faad14;
+    --warning-color-hover: #d48806;
+
+    /* Danger Color */
+    --danger-color: #ff4d4f;
+    --danger-color-hover: #ff7875;
+
+    /* Input */
+    --input-bg: #1a1d21;
+
+    /* Button */
+    --btn-secondary-bg: #2c2f33;
+
+    /* Hover */
+    --hover-bg: rgba(255, 255, 255, 0.05);
+    --active-bg: rgba(86, 164, 255, 0.15);
+}
+
+/* Dark Theme Body */
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* Sidebar Dark Theme */
+.sidebar {
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+}
+
+.sidebar-header {
+    border-bottom-color: var(--border-color);
+}
+
+.logo-icon {
+    background: linear-gradient(135deg, var(--primary-color), #6f42c1);
+    color: white;
+}
+
+.logo-text {
+    color: var(--text-primary);
+}
+
+.sidebar-footer {
+    border-top-color: var(--border-color);
+}
+
+/* Panels Dark Theme */
+.panel {
+    background: var(--bg-tertiary);
+}
+
+.panel-header {
+    border-bottom-color: var(--border-color);
+}
+
+/* Form Controls Dark Theme */
+.form-control {
+    background: var(--input-bg);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px var(--primary-color-alpha);
+}
+
+/* Stat Cards Dark Theme */
+.stat-card {
+    background: var(--bg-secondary);
+}
+
+.stat-value {
+    color: var(--primary-color);
+}
+
+/* Model Items Dark Theme */
+.model-item {
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+}
+
+.model-item:hover {
+    background: var(--hover-bg);
+}
+
+.model-item.selected {
+    border-color: var(--primary-color);
+    background: var(--primary-color-alpha);
+}
+
+/* Results Table Dark Theme */
+.results-table th {
+    background: var(--bg-secondary);
+}
+
+.results-table tr:hover {
+    background: var(--hover-bg);
+}
+
+/* Model Cards Dark Theme */
+.model-card {
+    background: var(--bg-tertiary);
+}
+
+.model-card-header {
+    border-bottom-color: var(--border-color);
+}
+
+/* Datasource Cards Dark Theme */
+.datasource-card {
+    background: var(--bg-tertiary);
+}
+
+/* Modal Dark Theme */
+.modal-content {
+    background: var(--bg-tertiary);
+}
+
+.modal-header {
+    border-bottom-color: var(--border-color);
+}
+
+.modal-footer {
+    border-top-color: var(--border-color);
+}
+
+/* Button Secondary Dark Theme */
+.btn-secondary {
+    background: var(--btn-secondary-bg);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.btn-secondary:hover {
+    background: var(--hover-bg);
+}
+
+/* Scrollbar Dark Theme */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--border-color-light);
+}
+
+/* Range Input Dark Theme */
+input[type="range"] {
+    -webkit-appearance: none;
+    background: var(--border-color);
+    height: 4px;
+    border-radius: 2px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+/* Date Input Dark Theme */
+input[type="date"] {
+    color-scheme: dark;
+}
+
+/* Select Dropdown Dark Theme */
+select {
+    color-scheme: dark;
+}
+
+/* Checkbox Dark Theme */
+input[type="checkbox"] {
+    accent-color: var(--primary-color);
+    cursor: pointer;
+}
+
+/* Train Range Label */
+.train-range-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+#train-range-text {
+    color: var(--warning-color);
+    font-weight: 500;
+}
+}

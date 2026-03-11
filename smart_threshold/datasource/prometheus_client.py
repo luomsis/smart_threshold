@@ -532,7 +532,19 @@ class MockPrometheusDataSource(PrometheusDataSource):
         )
 
         # 筛选时间范围（确保只返回请求范围内的数据）
-        mask = (data.index >= time_range.start) & (data.index <= time_range.end)
+        # 统一时区处理：转换为东八区 tz-naive 以便与 data.index 比较
+        import pandas as pd
+        from datetime import timedelta, timezone
+        TZ_SHANGHAI = timezone(timedelta(hours=8))
+
+        start_ts = pd.Timestamp(time_range.start)
+        end_ts = pd.Timestamp(time_range.end)
+        # 如果有时区信息，转换为东八区后去掉时区
+        if start_ts.tz is not None:
+            start_ts = start_ts.tz_convert(TZ_SHANGHAI).tz_localize(None)
+        if end_ts.tz is not None:
+            end_ts = end_ts.tz_convert(TZ_SHANGHAI).tz_localize(None)
+        mask = (data.index >= start_ts) & (data.index <= end_ts)
         data = data[mask]
 
         return QueryResult(

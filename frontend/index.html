@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartThreshold - 智能阈值系统</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/grafana-theme.css">
+    <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+    <div id="app" class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1 class="logo">
+                    <span class="logo-icon">S</span>
+                    <span class="logo-text">SmartThreshold</span>
+                </h1>
+            </div>
+            <nav class="sidebar-nav">
+                <ul class="nav-list">
+                    <li class="nav-item active" data-page="dashboard">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-text">仪表盘</span>
+                    </li>
+                    <li class="nav-item" data-page="models">
+                        <span class="nav-icon">🤖</span>
+                        <span class="nav-text">模型管理</span>
+                    </li>
+                    <li class="nav-item" data-page="datasources">
+                        <span class="nav-icon">🔌</span>
+                        <span class="nav-text">数据源</span>
+                    </li>
+                </ul>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="datasource-info">
+                    <span class="label">当前数据源</span>
+                    <span class="value" id="current-datasource">Mock 数据源</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard Page -->
+            <div id="page-dashboard" class="page active">
+                <div class="page-header">
+                    <h2 class="page-title">仪表盘</h2>
+                    <div class="page-actions">
+                        <button class="btn btn-secondary" id="btn-refresh">
+                            <span>🔄</span> 刷新
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Query Panel -->
+                <div class="panel query-panel">
+                    <div class="panel-header">
+                        <h3 class="panel-title">数据查询</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="metric-select">选择指标</label>
+                                <select id="metric-select" class="form-control">
+                                    <option value="">请选择指标...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="label-select">筛选标签</label>
+                                <select id="label-select" class="form-control">
+                                    <option value="">全部</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="label-value-select">标签值</label>
+                                <select id="label-value-select" class="form-control">
+                                    <option value="">全部</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="time-range">查询天数</label>
+                                <input type="range" id="time-range" min="1" max="30" value="7" class="form-range">
+                                <span class="range-value" id="time-range-value">7 天</span>
+                            </div>
+                            <div class="form-group">
+                                <label for="step-select">采样间隔</label>
+                                <select id="step-select" class="form-control">
+                                    <option value="1m">1 分钟</option>
+                                    <option value="5m">5 分钟</option>
+                                    <option value="15m">15 分钟</option>
+                                    <option value="1h">1 小时</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn btn-primary" id="btn-query">
+                                <span>🔍</span> 执行查询
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats Panel -->
+                <div class="panel stats-panel" id="stats-panel" style="display: none;">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <span class="stat-label">数据点数</span>
+                            <span class="stat-value" id="stat-count">-</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">最小值</span>
+                            <span class="stat-value" id="stat-min">-</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">最大值</span>
+                            <span class="stat-value" id="stat-max">-</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">平均值</span>
+                            <span class="stat-value" id="stat-mean">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chart Panel -->
+                <div class="panel chart-panel" id="chart-panel" style="display: none;">
+                    <div class="panel-header">
+                        <h3 class="panel-title" id="chart-title">时序数据</h3>
+                        <div class="panel-actions">
+                            <span class="train-range-label">训练区间: <span id="train-range-text">未设置</span></span>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div id="main-chart" class="chart-container"></div>
+                    </div>
+                </div>
+
+                <!-- Training Range Panel -->
+                <div class="panel training-panel" id="training-panel" style="display: none;">
+                    <div class="panel-header">
+                        <h3 class="panel-title">训练区间设置</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="train-start">开始日期</label>
+                                <input type="date" id="train-start" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label for="train-end">结束日期</label>
+                                <input type="date" id="train-end" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <button class="btn btn-secondary" id="btn-set-train">设置训练区间</button>
+                            </div>
+                            <div class="form-group">
+                                <button class="btn btn-secondary" id="btn-auto-train">使用前 80%</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Model Comparison Panel -->
+                <div class="panel comparison-panel" id="comparison-panel" style="display: none;">
+                    <div class="panel-header">
+                        <h3 class="panel-title">模型对比</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="model-selection">
+                            <h4>选择模型</h4>
+                            <div class="model-list" id="model-list"></div>
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn btn-primary" id="btn-compare">
+                                <span>🚀</span> 运行对比
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comparison Results Panel -->
+                <div class="panel results-panel" id="results-panel" style="display: none;">
+                    <div class="panel-header">
+                        <h3 class="panel-title">对比结果</h3>
+                    </div>
+                    <div class="panel-body">
+                        <table class="results-table" id="results-table">
+                            <thead>
+                                <tr>
+                                    <th>模型</th>
+                                    <th>MAPE (%)</th>
+                                    <th>MAE</th>
+                                    <th>覆盖率 (%)</th>
+                                    <th>状态</th>
+                                </tr>
+                            </thead>
+                            <tbody id="results-body"></tbody>
+                        </table>
+                        <div id="comparison-chart" class="chart-container"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Models Page -->
+            <div id="page-models" class="page">
+                <div class="page-header">
+                    <h2 class="page-title">模型管理</h2>
+                    <div class="page-actions">
+                        <button class="btn btn-primary" id="btn-add-model">
+                            <span>+</span> 添加模型
+                        </button>
+                    </div>
+                </div>
+                <div class="models-grid" id="models-grid"></div>
+            </div>
+
+            <!-- DataSources Page -->
+            <div id="page-datasources" class="page">
+                <div class="page-header">
+                    <h2 class="page-title">数据源管理</h2>
+                    <div class="page-actions">
+                        <button class="btn btn-primary" id="btn-add-datasource">
+                            <span>+</span> 添加数据源
+                        </button>
+                    </div>
+                </div>
+                <div class="datasources-list" id="datasources-list"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner"></div>
+        <span class="loading-text">加载中...</span>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-title">标题</h3>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+            <div class="modal-footer" id="modal-footer"></div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="js/utils/helpers.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/components/sidebar.js"></script>
+    <script src="js/components/charts.js"></script>
+    <script src="js/components/dashboard.js"></script>
+    <script src="js/components/models.js"></script>
+    <script src="js/components/datasources.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

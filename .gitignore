@@ -33,3 +33,7 @@ outputs/
 *.png
 *.jpg
 *.pdf
+
+# Runtime files
+*.pid
+*.log

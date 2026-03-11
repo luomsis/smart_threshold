@@ -1,0 +1,352 @@
+/* Components CSS - Additional Component Styles */
+
+/* Winner Badge */
+.winner-badge {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 8px;
+}
+
+/* Status Badge */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-success {
+    background: rgba(115, 209, 61, 0.15);
+    color: var(--success-color);
+}
+
+.status-error {
+    background: rgba(255, 77, 79, 0.15);
+    color: var(--danger-color);
+}
+
+.status-pending {
+    background: rgba(250, 173, 20, 0.15);
+    color: var(--warning-color);
+}
+
+/* Tags */
+.tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    background: var(--primary-color-alpha);
+    color: var(--primary-color);
+    margin-right: 4px;
+}
+
+.tag-system {
+    background: rgba(115, 209, 61, 0.15);
+    color: var(--success-color);
+}
+
+.tag-custom {
+    background: rgba(250, 173, 20, 0.15);
+    color: var(--warning-color);
+}
+
+/* Empty State */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    color: var(--text-secondary);
+}
+
+.empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.empty-state-text {
+    font-size: 14px;
+}
+
+/* Skeleton Loading */
+.skeleton {
+    background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--border-color) 50%, var(--bg-secondary) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s infinite;
+    border-radius: 4px;
+}
+
+@keyframes skeleton-loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeleton-text {
+    height: 16px;
+    margin-bottom: 8px;
+}
+
+.skeleton-text:last-child {
+    width: 60%;
+}
+
+/* Chart Legend */
+.chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 16px;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.legend-color {
+    width: 16px;
+    height: 3px;
+    border-radius: 2px;
+}
+
+.legend-color.dashed {
+    background: repeating-linear-gradient(
+        90deg,
+        currentColor,
+        currentColor 4px,
+        transparent 4px,
+        transparent 8px
+    );
+}
+
+/* Form Validation */
+.form-group.error .form-control {
+    border-color: var(--danger-color);
+}
+
+.form-group .error-message {
+    font-size: 12px;
+    color: var(--danger-color);
+    margin-top: 4px;
+}
+
+/* Tooltip */
+.tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.tooltip-text {
+    visibility: hidden;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    text-align: center;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    position: absolute;
+    z-index: 100;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.tooltip:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Progress Bar */
+.progress-bar {
+    width: 100%;
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: var(--primary-color);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+/* Divider */
+.divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 16px 0;
+}
+
+/* Card Actions */
+.card-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.card-actions .btn {
+    padding: 4px 12px;
+    font-size: 12px;
+}
+
+/* Model Type Badge */
+.model-type-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.model-type-badge.prophet {
+    background: rgba(86, 164, 255, 0.15);
+    color: #56a4ff;
+}
+
+.model-type-badge.welford {
+    background: rgba(250, 173, 20, 0.15);
+    color: #faad14;
+}
+
+.model-type-badge.static {
+    background: rgba(115, 209, 61, 0.15);
+    color: #73d13d;
+}
+
+/* Feature Analysis Result */
+.feature-result {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    margin-bottom: 16px;
+}
+
+.feature-item {
+    text-align: center;
+}
+
+.feature-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.feature-value {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.feature-value.positive {
+    color: var(--success-color);
+}
+
+.feature-value.negative {
+    color: var(--danger-color);
+}
+
+/* Parameter Editor */
+.param-editor {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.param-editor-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.param-editor-item label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.param-editor-item .help-text {
+    font-size: 11px;
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+
+/* Comparison Chart Controls */
+.chart-controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.chart-controls .control-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.chart-controls label {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 1024px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .models-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .models-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .page-actions {
+        width: 100%;
+    }
+
+    .page-actions .btn {
+        flex: 1;
+    }
+}
