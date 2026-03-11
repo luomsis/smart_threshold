@@ -2,6 +2,18 @@
  * Helper utility functions
  */
 
+// Chart colors palette (defined once at module level)
+const CHART_COLORS = [
+    '#56a4ff',  // blue
+    '#73bf69',  // green
+    '#f2cc0c',  // yellow
+    '#e5465e',  // red
+    '#9673f2',  // purple
+    '#ff8c42',  // orange
+    '#00d9ff',  // cyan
+    '#ff6b9d',  // pink
+];
+
 const Helpers = {
     /**
      * Format date to locale string
@@ -154,6 +166,13 @@ const Helpers = {
         const start = new Date();
         start.setDate(start.getDate() - days);
         return { start, end };
+    },
+
+    /**
+     * Get chart color by index
+     */
+    getChartColor(index) {
+        return CHART_COLORS[index % CHART_COLORS.length];
     },
 
     /**

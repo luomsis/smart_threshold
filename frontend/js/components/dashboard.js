@@ -346,6 +346,47 @@ const Dashboard = {
             this.state.selectedModels.splice(index, 1);
         }
         this.displayModelList();
+
+        // 如果有对比结果，更新图表
+        if (this.state.comparisonResults) {
+            this.updateComparisonChart();
+        }
+    },
+
+    /**
+     * Prepare comparison chart data
+     */
+    prepareComparisonData(result) {
+        return {
+            trainData: {
+                timestamps: this.state.queryData.timestamps,
+                values: this.state.queryData.values,
+            },
+            testData: {
+                timestamps: result.test_data.data.map(d => d.timestamp),
+                values: result.test_data.data.map(d => d.value),
+            },
+        };
+    },
+
+    /**
+     * Filter results by selected models using Set for O(1) lookup
+     */
+    filterResultsBySelection(results) {
+        const selectedSet = new Set(this.state.selectedModels);
+        return results.filter(r => selectedSet.has(r.model_id));
+    },
+
+    /**
+     * Sort results by success and MAPE
+     */
+    sortResults(results) {
+        return results.slice().sort((a, b) => {
+            if (a.success !== b.success) return b.success - a.success;
+            const aKey = a.success ? a.mape : Infinity;
+            const bKey = b.success ? b.mape : Infinity;
+            return aKey - bKey;
+        });
     },
 
     /**
@@ -393,6 +434,9 @@ const Dashboard = {
         const tbody = document.getElementById('results-body');
         tbody.innerHTML = '';
 
+        // Results summary
+        const summaryDiv = document.getElementById('results-summary');
+
         // 防御性检查：确保 result 是有效对象
         if (!result || typeof result !== 'object') {
             Helpers.showToast('对比结果格式错误', 'error');
@@ -406,9 +450,52 @@ const Dashboard = {
             return;
         }
 
-        results.forEach(r => {
-            const tr = document.createElement('tr');
+        // 排序：成功的排前面，按 MAPE 从小到大排序
+        const sortedResults = this.sortResults(results);
 
+        // 找出最佳模型（MAPE 最小且成功的）
+        const bestModel = sortedResults.find(r => r.success);
+        const successCount = sortedResults.filter(r => r.success).length;
+
+        // 默认只选中最佳模型
+        if (bestModel) {
+            this.state.selectedModels = [bestModel.model_id];
+            this.updateModelListSelection(); // 只更新选中状态，不重建DOM
+        }
+
+        // 显示结果摘要
+        if (bestModel) {
+            summaryDiv.innerHTML = `
+                <div class="summary-card">
+                    <div class="summary-item best">
+                        <span class="summary-label">最佳模型</span>
+                        <span class="summary-value" style="color: #73bf69;">${bestModel.model_name}</span>
+                        <span class="summary-sub">MAPE: ${Helpers.formatNumber(bestModel.mape, 2)}%</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">成功/总计</span>
+                        <span class="summary-value">${successCount}/${results.length}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">测试数据点</span>
+                        <span class="summary-value">${result.test_data?.data?.length || 0}</span>
+                    </div>
+                </div>
+            `;
+        } else {
+            summaryDiv.innerHTML = `<div class="summary-card"><span class="summary-error">所有模型均运行失败</span></div>`;
+        }
+
+        sortedResults.forEach((r, index) => {
+            const tr = document.createElement('tr');
+            if (r.model_id === bestModel?.model_id) {
+                tr.classList.add('best-model');
+            }
+
+            const rank = index + 1;
+            const rankBadge = r.success
+                ? (index === 0 ? '🏆' : `<span class="model-rank">#${rank}</span>`)
+                : '-';
             const mape = r.success ? Helpers.formatNumber(r.mape, 2) : '-';
             const mae = r.success ? Helpers.formatNumber(r.mae, 2) : '-';
             const coverage = r.success ? Helpers.formatPercent(r.coverage) : '-';
@@ -417,6 +504,7 @@ const Dashboard = {
                 : `<span class="status-badge status-error">${r.error || '失败'}</span>`;
 
             tr.innerHTML = `
+                <td>${rankBadge}</td>
                 <td>${r.model_name}</td>
                 <td>${mape}</td>
                 <td>${mae}</td>
@@ -426,33 +514,56 @@ const Dashboard = {
             tbody.appendChild(tr);
         });
 
-        // Comparison chart - include both training and test data
-        if (result.test_data && results.length > 0) {
-            // 检查 ECharts 是否已加载
-            if (typeof echarts === 'undefined') {
-                return;
-            }
-
-            // Prepare training data
-            const trainData = {
-                timestamps: this.state.queryData.timestamps,
-                values: this.state.queryData.values,
-            };
-
-            // Prepare test data
-            const testData = {
-                timestamps: result.test_data.data.map(d => d.timestamp),
-                values: result.test_data.data.map(d => d.value),
-            };
+        // Comparison chart - 只展示选中的模型
+        if (result.test_data && results.length > 0 && typeof echarts !== 'undefined') {
+            const { trainData, testData } = this.prepareComparisonData(result);
+            const selectedResults = this.filterResultsBySelection(results);
 
             Charts.createComparisonChart(
                 'comparison-chart',
                 trainData,
                 testData,
-                results,
+                selectedResults,
                 this.state.models
             );
         }
+    },
+
+    /**
+     * Update comparison chart based on selected models
+     */
+    updateComparisonChart() {
+        const result = this.state.comparisonResults;
+        if (!result || !result.test_data || typeof echarts === 'undefined') {
+            return;
+        }
+
+        const { trainData, testData } = this.prepareComparisonData(result);
+        const selectedResults = this.filterResultsBySelection(result.results);
+
+        Charts.createComparisonChart(
+            'comparison-chart',
+            trainData,
+            testData,
+            selectedResults,
+            this.state.models
+        );
+    },
+
+    /**
+     * Update model list UI without full rebuild
+     */
+    updateModelListSelection() {
+        const container = document.getElementById('model-list');
+        const selectedSet = new Set(this.state.selectedModels);
+
+        container.querySelectorAll('.model-item').forEach(item => {
+            const modelId = item.dataset.modelId;
+            const isSelected = selectedSet.has(modelId);
+            item.classList.toggle('selected', isSelected);
+            const checkbox = item.querySelector('input[type="checkbox"]');
+            if (checkbox) checkbox.checked = isSelected;
+        });
     },
 
     /**
