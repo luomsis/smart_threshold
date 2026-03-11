@@ -183,7 +183,14 @@ const Dashboard = {
                 Helpers.showToast('查询失败: ' + (result.error || '无数据'), 'error');
             }
         } catch (error) {
-            Helpers.showToast('查询失败: ' + error.message, 'error');
+            // 处理数据源不存在的特殊情况
+            if (error.message?.includes('404') || error.message?.includes('not found')) {
+                Helpers.showToast('数据源不存在，请刷新页面重新选择', 'error');
+                this.state.currentDataSource = null;
+                this.state.dataSources = [];
+            } else {
+                Helpers.showToast('查询失败: ' + error.message, 'error');
+            }
         } finally {
             Helpers.showLoading(false);
         }
@@ -211,6 +218,12 @@ const Dashboard = {
     displayChart() {
         const data = this.state.queryData;
         if (!data) return;
+
+        // 检查 ECharts 是否已加载
+        if (typeof echarts === 'undefined') {
+            document.getElementById('chart-panel').style.display = 'none';
+            return;
+        }
 
         document.getElementById('chart-panel').style.display = 'block';
         document.getElementById('chart-title').textContent = `指标: ${data.name}`;
@@ -242,7 +255,7 @@ const Dashboard = {
         document.getElementById('train-range-text').textContent = `${start} ~ ${end}`;
 
         // Refresh chart
-        if (this.state.queryData) {
+        if (this.state.queryData && typeof echarts !== 'undefined') {
             Charts.createTimeSeriesChart('main-chart', this.state.queryData, {
                 trainStart: this.state.trainStart,
                 trainEnd: this.state.trainEnd,
@@ -273,10 +286,12 @@ const Dashboard = {
             `${Helpers.formatDateOnly(startDate)} ~ ${Helpers.formatDateOnly(endDate)}`;
 
         // Refresh chart
-        Charts.createTimeSeriesChart('main-chart', data, {
-            trainStart: this.state.trainStart,
-            trainEnd: this.state.trainEnd,
-        });
+        if (typeof echarts !== 'undefined') {
+            Charts.createTimeSeriesChart('main-chart', data, {
+                trainStart: this.state.trainStart,
+                trainEnd: this.state.trainEnd,
+            });
+        }
     },
 
     /**
@@ -378,7 +393,20 @@ const Dashboard = {
         const tbody = document.getElementById('results-body');
         tbody.innerHTML = '';
 
-        result.results.forEach(r => {
+        // 防御性检查：确保 result 是有效对象
+        if (!result || typeof result !== 'object') {
+            Helpers.showToast('对比结果格式错误', 'error');
+            return;
+        }
+
+        // 防御性检查：确保 results 是数组
+        const results = Array.isArray(result.results) ? result.results : [];
+        if (results.length === 0) {
+            Helpers.showToast('没有对比结果', 'warning');
+            return;
+        }
+
+        results.forEach(r => {
             const tr = document.createElement('tr');
 
             const mape = r.success ? Helpers.formatNumber(r.mape, 2) : '-';
@@ -398,8 +426,20 @@ const Dashboard = {
             tbody.appendChild(tr);
         });
 
-        // Comparison chart
-        if (result.test_data) {
+        // Comparison chart - include both training and test data
+        if (result.test_data && results.length > 0) {
+            // 检查 ECharts 是否已加载
+            if (typeof echarts === 'undefined') {
+                return;
+            }
+
+            // Prepare training data
+            const trainData = {
+                timestamps: this.state.queryData.timestamps,
+                values: this.state.queryData.values,
+            };
+
+            // Prepare test data
             const testData = {
                 timestamps: result.test_data.data.map(d => d.timestamp),
                 values: result.test_data.data.map(d => d.value),
@@ -407,8 +447,9 @@ const Dashboard = {
 
             Charts.createComparisonChart(
                 'comparison-chart',
+                trainData,
                 testData,
-                result.results,
+                results,
                 this.state.models
             );
         }

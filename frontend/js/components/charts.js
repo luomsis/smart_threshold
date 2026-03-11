@@ -9,6 +9,11 @@ const Charts = {
      * Initialize or get chart instance
      */
     getChart(containerId) {
+        // 检查 ECharts 是否已加载
+        if (typeof echarts === 'undefined') {
+            return null;
+        }
+
         if (!this.instances[containerId]) {
             const container = document.getElementById(containerId);
             if (container) {
@@ -161,12 +166,38 @@ const Charts = {
     /**
      * Create comparison chart
      */
-    createComparisonChart(containerId, testData, results, modelConfigs) {
+    createComparisonChart(containerId, trainData, testData, results, modelConfigs) {
         const chart = this.getChart(containerId);
         if (!chart) return;
 
-        const series = [{
-            name: '实际值',
+        // 防御性检查：确保 results 是数组
+        if (!Array.isArray(results)) {
+            return;
+        }
+
+        const series = [];
+        const legend = [];
+
+        // 训练数据（原始数据）- 浅灰色虚线
+        series.push({
+            name: '训练数据',
+            type: 'line',
+            data: trainData.values,
+            symbol: 'none',
+            lineStyle: {
+                color: '#6b7280',
+                width: 1,
+                type: 'dotted',
+            },
+            itemStyle: {
+                color: '#6b7280',
+            },
+        });
+        legend.push('训练数据');
+
+        // 测试数据（实际值）- 白色实线
+        series.push({
+            name: '测试数据',
             type: 'line',
             data: testData.values,
             symbol: 'none',
@@ -174,9 +205,14 @@ const Charts = {
                 color: '#e6e8eb',
                 width: 2,
             },
-        }];
+            itemStyle: {
+                color: '#e6e8eb',
+            },
+        });
+        legend.push('测试数据');
 
-        const legend = ['实际值'];
+        // 合并时间戳用于 x 轴
+        const allTimestamps = [...trainData.timestamps, ...testData.timestamps];
 
         results.forEach(result => {
             if (!result.success || !result.prediction) return;
@@ -185,11 +221,16 @@ const Charts = {
             const color = config ? config.color : '#56a4ff';
             const name = config ? config.name : result.model_id;
 
+            // 预测数据需要与测试数据对齐，前面用 null 填充
+            const paddedYhat = new Array(trainData.timestamps.length).fill(null).concat(result.prediction.yhat);
+            const paddedUpper = new Array(trainData.timestamps.length).fill(null).concat(result.prediction.yhat_upper);
+            const paddedLower = new Array(trainData.timestamps.length).fill(null).concat(result.prediction.yhat_lower);
+
             // Prediction line
             series.push({
-                name: `${name}`,
+                name: `${name} 预测`,
                 type: 'line',
-                data: result.prediction.yhat,
+                data: paddedYhat,
                 symbol: 'none',
                 lineStyle: {
                     color: color,
@@ -198,11 +239,11 @@ const Charts = {
                 },
             });
 
-            // Confidence interval
+            // Confidence interval - upper
             series.push({
-                name: `${name} 区间`,
+                name: `${name} 上限`,
                 type: 'line',
-                data: result.prediction.yhat_upper,
+                data: paddedUpper,
                 symbol: 'none',
                 lineStyle: {
                     opacity: 0,
@@ -210,13 +251,14 @@ const Charts = {
                 areaStyle: {
                     color: Helpers.hexToRgba(color, 0.15),
                 },
+                stack: `${name}-confidence`,
             });
 
-            // Lower bound (for area fill)
+            // Confidence interval - lower
             series.push({
                 name: `${name} 下限`,
                 type: 'line',
-                data: result.prediction.yhat_lower,
+                data: paddedLower,
                 symbol: 'none',
                 lineStyle: {
                     opacity: 0,
@@ -224,9 +266,10 @@ const Charts = {
                 areaStyle: {
                     color: 'transparent',
                 },
+                stack: `${name}-confidence`,
             });
 
-            legend.push(name);
+            legend.push(`${name} 预测`);
         });
 
         const chartOptions = {
@@ -246,6 +289,15 @@ const Charts = {
                 textStyle: {
                     color: '#e6e8eb',
                 },
+                formatter: function(params) {
+                    let result = params[0].axisValue + '<br/>';
+                    params.forEach(param => {
+                        if (param.value !== null && param.seriesName !== '训练数据') {
+                            result += `<span style="color:${param.color}">●</span> ${param.seriesName}: <b>${param.value?.toFixed(2) || '-'}</b><br/>`;
+                        }
+                    });
+                    return result;
+                },
             },
             legend: {
                 data: legend,
@@ -263,7 +315,7 @@ const Charts = {
             },
             xAxis: {
                 type: 'category',
-                data: testData.timestamps,
+                data: allTimestamps,
                 boundaryGap: false,
                 axisLine: {
                     lineStyle: { color: '#30363d' },
