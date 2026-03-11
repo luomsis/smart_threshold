@@ -569,7 +569,7 @@ class MockPrometheusDataSource(PrometheusDataSource):
         }
 
 
-def create_datasource(config: DataSourceConfig) -> PrometheusDataSource:
+def create_datasource(config: DataSourceConfig):
     """
     创建数据源实例
 
@@ -577,8 +577,11 @@ def create_datasource(config: DataSourceConfig) -> PrometheusDataSource:
         config: 数据源配置
 
     Returns:
-        数据源实例
+        数据源实例 (PrometheusDataSource, MockPrometheusDataSource 或 TimescaleDBDataSource)
     """
     if config.source_type == DataSourceType.MOCK:
         return MockPrometheusDataSource(config)
+    elif config.source_type == DataSourceType.TIMESCALEDB:
+        from smart_threshold.datasource.timescaledb_client import TimescaleDBDataSource
+        return TimescaleDBDataSource(config)
     return PrometheusDataSource(config)

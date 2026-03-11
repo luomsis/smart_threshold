@@ -78,17 +78,46 @@ const DataSources = {
             </div>
             <div class="form-group">
                 <label>数据源类型</label>
-                <select id="ds-type" class="form-control">
+                <select id="ds-type" class="form-control" onchange="DataSources.onTypeChange()">
                     <option value="prometheus">Prometheus</option>
+                    <option value="timescaledb">TimescaleDB</option>
+                    <option value="mock">Mock (测试用)</option>
                 </select>
             </div>
-            <div class="form-group">
-                <label>URL</label>
-                <input type="text" id="ds-url" class="form-control" placeholder="http://localhost:9090">
+            <div id="prometheus-config">
+                <div class="form-group">
+                    <label>URL</label>
+                    <input type="text" id="ds-url" class="form-control" placeholder="http://localhost:9090">
+                </div>
+                <div class="form-group">
+                    <label>认证令牌 (可选)</label>
+                    <input type="text" id="ds-token" class="form-control" placeholder="Bearer token">
+                </div>
             </div>
-            <div class="form-group">
-                <label>认证令牌 (可选)</label>
-                <input type="text" id="ds-token" class="form-control" placeholder="Bearer token">
+            <div id="timescaledb-config" style="display: none;">
+                <div class="form-group">
+                    <label>主机</label>
+                    <input type="text" id="ds-db-host" class="form-control" value="localhost" placeholder="数据库主机">
+                </div>
+                <div class="form-group">
+                    <label>端口</label>
+                    <input type="number" id="ds-db-port" class="form-control" value="5432" placeholder="数据库端口">
+                </div>
+                <div class="form-group">
+                    <label>数据库名称</label>
+                    <input type="text" id="ds-db-name" class="form-control" value="postgres" placeholder="数据库名称">
+                </div>
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="ds-db-user" class="form-control" value="postgres" placeholder="数据库用户">
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="ds-db-password" class="form-control" placeholder="数据库密码">
+                </div>
+            </div>
+            <div id="mock-config" style="display: none;">
+                <p class="text-muted">Mock 数据源用于测试，无需额外配置。</p>
             </div>
         `;
 
@@ -101,26 +130,59 @@ const DataSources = {
     },
 
     /**
+     * Handle data source type change
+     */
+    onTypeChange() {
+        const type = document.getElementById('ds-type').value;
+        document.getElementById('prometheus-config').style.display = type === 'prometheus' ? 'block' : 'none';
+        document.getElementById('timescaledb-config').style.display = type === 'timescaledb' ? 'block' : 'none';
+        document.getElementById('mock-config').style.display = type === 'mock' ? 'block' : 'none';
+    },
+
+    /**
      * Create data source
      */
     async createDataSource() {
         const name = document.getElementById('ds-name').value;
         const type = document.getElementById('ds-type').value;
-        const url = document.getElementById('ds-url').value;
-        const token = document.getElementById('ds-token').value;
 
-        if (!name || !url) {
-            Helpers.showToast('请填写必要信息', 'error');
+        if (!name) {
+            Helpers.showToast('请填写数据源名称', 'error');
             return;
         }
 
+        let config = {
+            name,
+            source_type: type,
+        };
+
+        if (type === 'prometheus') {
+            const url = document.getElementById('ds-url').value;
+            if (!url) {
+                Helpers.showToast('请填写 URL', 'error');
+                return;
+            }
+            config.url = url;
+            config.auth_token = document.getElementById('ds-token').value || null;
+        } else if (type === 'timescaledb') {
+            const dbHost = document.getElementById('ds-db-host').value;
+            const dbName = document.getElementById('ds-db-name').value;
+            if (!dbHost || !dbName) {
+                Helpers.showToast('请填写数据库连接信息', 'error');
+                return;
+            }
+            config.url = `postgresql://${dbHost}:${document.getElementById('ds-db-port').value}/${dbName}`;
+            config.db_host = dbHost;
+            config.db_port = parseInt(document.getElementById('ds-db-port').value) || 5432;
+            config.db_name = dbName;
+            config.db_user = document.getElementById('ds-db-user').value || 'postgres';
+            config.db_password = document.getElementById('ds-db-password').value || '';
+        } else if (type === 'mock') {
+            config.url = 'mock://localhost';
+        }
+
         try {
-            await API.createDataSource({
-                name,
-                source_type: type,
-                url,
-                auth_token: token || null,
-            });
+            await API.createDataSource(config);
 
             Helpers.hideModal();
             Helpers.showToast('数据源创建成功', 'success');

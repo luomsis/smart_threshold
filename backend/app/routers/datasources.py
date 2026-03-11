@@ -42,6 +42,7 @@ def _get_datasource_instance(ds_id: str):
         "prometheus": DsType.PROMETHEUS,
         "influxdb": DsType.INFLUXDB,
         "mock": DsType.MOCK,
+        "timescaledb": DsType.TIMESCALEDB,
     }
     source_type = source_type_map.get(ds_config.source_type.value, DsType.MOCK)
 
@@ -53,6 +54,11 @@ def _get_datasource_instance(ds_id: str):
         auth_token=ds_config.auth_token,
         headers=ds_config.headers,
         default_timeout=ds_config.default_timeout,
+        db_host=ds_config.db_host,
+        db_port=ds_config.db_port,
+        db_name=ds_config.db_name,
+        db_user=ds_config.db_user,
+        db_password=ds_config.db_password,
     )
     return create_datasource(config), ds_config
 

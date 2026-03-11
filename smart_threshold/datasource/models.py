@@ -13,6 +13,7 @@ class DataSourceType(Enum):
     PROMETHEUS = "prometheus"
     INFLUXDB = "influxdb"
     MOCK = "mock"
+    TIMESCALEDB = "timescaledb"
 
 
 @dataclass
@@ -41,6 +42,12 @@ class DataSourceConfig:
     auth_token: Optional[str] = None
     headers: Dict[str, str] = field(default_factory=dict)
     default_timeout: int = 30
+    # TimescaleDB 特定配置
+    db_host: str = "localhost"
+    db_port: int = 5432
+    db_name: str = "postgres"
+    db_user: str = "postgres"
+    db_password: str = ""
 
 
 @dataclass

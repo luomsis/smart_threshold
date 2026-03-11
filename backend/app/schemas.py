@@ -15,6 +15,7 @@ class DataSourceType(str, Enum):
     PROMETHEUS = "prometheus"
     INFLUXDB = "influxdb"
     MOCK = "mock"
+    TIMESCALEDB = "timescaledb"
 
 
 class ModelType(str, Enum):
@@ -41,6 +42,12 @@ class DataSourceConfigBase(BaseModel):
     auth_token: Optional[str] = Field(None, description="认证令牌")
     headers: Dict[str, str] = Field(default_factory=dict, description="请求头")
     default_timeout: int = Field(30, description="默认超时时间")
+    # TimescaleDB 特定配置
+    db_host: str = Field("localhost", description="数据库主机")
+    db_port: int = Field(5432, description="数据库端口")
+    db_name: str = Field("postgres", description="数据库名称")
+    db_user: str = Field("postgres", description="数据库用户")
+    db_password: str = Field("", description="数据库密码")
 
 
 class DataSourceConfigCreate(DataSourceConfigBase):

@@ -139,12 +139,6 @@ async def update_model(model_id: str, updates: ModelConfigUpdate):
             detail=f"Model {model_id} not found"
         )
 
-    if config.category == TemplateCategory.SYSTEM.value:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot modify system models"
-        )
-
     # Filter out None values
     update_dict = {k: v for k, v in updates.model_dump().items() if v is not None}
 
