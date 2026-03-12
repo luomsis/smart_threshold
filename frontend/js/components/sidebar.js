@@ -44,6 +44,29 @@ const Sidebar = {
         }
     },
 
+    /**
+     * Navigate to model edit page (called from Models component)
+     */
+    navigateToModelEdit() {
+        // Hide all pages
+        document.querySelectorAll('.page').forEach(p => {
+            p.classList.remove('active');
+        });
+
+        // Show model edit page
+        const editPage = document.getElementById('page-model-edit');
+        if (editPage) {
+            editPage.classList.add('active');
+        }
+
+        // Clear nav selection
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.classList.remove('active');
+        });
+
+        this.currentPage = 'model-edit';
+    },
+
     updateCurrentDataSource(name) {
         document.getElementById('current-datasource').textContent = name;
     },

@@ -171,34 +171,76 @@
     margin-top: 4px;
 }
 
-/* Tooltip */
-.tooltip {
+/* Checkbox 样式 */
+.param-editor-item.checkbox-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.param-editor-item.checkbox-item label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    margin: 0;
+}
+
+.param-editor-item.checkbox-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+/* Help Icon */
+.param-label-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     position: relative;
-    display: inline-block;
 }
 
-.tooltip-text {
-    visibility: hidden;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    text-align: center;
-    padding: 8px 12px;
-    border-radius: 6px;
-    border: 1px solid var(--border-color);
-    position: absolute;
-    z-index: 100;
-    bottom: 125%;
-    left: 50%;
-    transform: translateX(-50%);
-    white-space: nowrap;
+.help-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: white;
     font-size: 12px;
-    opacity: 0;
-    transition: opacity 0.2s;
+    font-weight: bold;
+    cursor: help;
+    flex-shrink: 0;
+    transition: background 0.2s;
 }
 
-.tooltip:hover .tooltip-text {
-    visibility: visible;
-    opacity: 1;
+.help-icon:hover {
+    background: var(--primary-color-dark, #3b82f6);
+}
+
+/* Global Tooltip */
+.help-tooltip {
+    position: fixed;
+    top: 0;
+    left: 0;
+    background: #333;
+    color: white;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    min-width: 200px;
+    max-width: 400px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s;
+    z-index: 10000;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 /* Progress Bar */
@@ -300,6 +342,34 @@
     gap: 16px;
 }
 
+/* Prophet 参数编辑器特殊样式 */
+.param-editor.prophet-params {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.param-section {
+    background: var(--bg-secondary, #f8f9ff);
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.param-section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #333);
+    margin: 0 0 16px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border-color, #e0e0e0);
+}
+
+.param-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+}
+
 .param-editor-item {
     display: flex;
     flex-direction: column;
@@ -316,6 +386,77 @@
     font-size: 11px;
     color: var(--text-secondary);
     opacity: 0.7;
+}
+
+/* Checkbox 样式 */
+.param-editor-item.checkbox-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.param-editor-item.checkbox-item label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    margin: 0;
+}
+
+.param-editor-item.checkbox-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+/* Help Icon */
+.param-label-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.help-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: help;
+    flex-shrink: 0;
+    transition: background 0.2s;
+}
+
+.help-icon:hover {
+    background: var(--primary-color-dark, #3b82f6);
+}
+
+/* Global Tooltip */
+.help-tooltip {
+    position: fixed;
+    top: 0;
+    left: 0;
+    background: #333;
+    color: white;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    min-width: 200px;
+    max-width: 400px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s;
+    z-index: 10000;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 /* Comparison Chart Controls */

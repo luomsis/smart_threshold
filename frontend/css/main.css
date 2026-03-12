@@ -552,7 +552,7 @@ html, body {
 
 .modal-content {
     width: 90%;
-    max-width: 600px;
+    max-width: 900px;
     max-height: 90vh;
     border-radius: 8px;
     overflow: hidden;
@@ -682,6 +682,16 @@ html, body {
 .datasource-actions {
     display: flex;
     gap: 10px;
+}
+
+/* Model Edit Page */
+.model-edit-form {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.model-edit-form .param-editor {
+    margin-top: 20px;
 }
 
 /* Responsive */

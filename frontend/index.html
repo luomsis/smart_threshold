@@ -221,6 +221,42 @@
                 <div class="models-grid" id="models-grid"></div>
             </div>
 
+            <!-- Model Edit Page -->
+            <div id="page-model-edit" class="page">
+                <div class="page-header">
+                    <h2 class="page-title" id="edit-page-title">添加模型</h2>
+                    <div class="page-actions">
+                        <button class="btn btn-secondary" id="btn-back-models">
+                            <span>←</span> 返回
+                        </button>
+                        <button class="btn btn-primary" id="btn-save-model">
+                            <span>💾</span> 保存
+                        </button>
+                    </div>
+                </div>
+                <div class="model-edit-form">
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 2;">
+                            <label>模型名称</label>
+                            <input type="text" id="edit-model-name" class="form-control" placeholder="输入模型名称">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>模型类型</label>
+                            <select id="edit-model-type" class="form-control" onchange="Models.onModelTypeChange()">
+                                <option value="prophet">Prophet</option>
+                                <option value="welford">Welford</option>
+                                <option value="static">Static</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>描述</label>
+                        <textarea id="edit-model-desc" class="form-control" rows="2" placeholder="输入模型描述"></textarea>
+                    </div>
+                    <div id="edit-model-params" class="param-editor"></div>
+                </div>
+            </div>
+
             <!-- DataSources Page -->
             <div id="page-datasources" class="page">
                 <div class="page-header">
