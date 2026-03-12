@@ -296,5 +296,3 @@ class ParamOptimizer:
         return auto_sigma
 
 
-# 保持向后兼容的别名
-BacktestOptimizer = ParamOptimizer

@@ -18,6 +18,9 @@ from smart_threshold.core.predictors.base import BasePredictor, PredictionResult
 from smart_threshold.core.predictors.factory import PredictorFactory, PredictorType
 from smart_threshold.config import ConfigManager
 from smart_threshold.core.param_optimizer import ParamOptimizer
+from smart_threshold.core.predictors.prophet_predictor import ProphetPredictor
+from smart_threshold.core.predictors.welford_predictor import WelfordPredictor
+from smart_threshold.core.predictors.static_predictor import StaticPredictor
 
 
 class AlgorithmType(Enum):

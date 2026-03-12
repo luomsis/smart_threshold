@@ -53,7 +53,6 @@ class ConfigManager:
                 "seasonality_prior_scale": 10.0,
                 "holidays_prior_scale": 10.0,
                 "mcmc_samples": 0,
-                "interval_width": 0.95,
             },
             "welford": {
                 "confidence_level": 0.997,

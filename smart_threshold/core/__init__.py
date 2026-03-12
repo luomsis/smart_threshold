@@ -10,7 +10,9 @@ Core module
 from smart_threshold.core.feature_analyzer import FeatureExtractor, FeatureResult
 from smart_threshold.core.model_router import ModelRouter, AlgorithmType
 from smart_threshold.core.param_optimizer import ParamOptimizer, OptimizationResult
-from smart_threshold.core.backtest_optimizer import BacktestOptimizer  # 向后兼容
+
+# 向后兼容别名
+BacktestOptimizer = ParamOptimizer
 
 __all__ = [
     "FeatureExtractor",
@@ -19,5 +21,5 @@ __all__ = [
     "AlgorithmType",
     "ParamOptimizer",
     "OptimizationResult",
-    "BacktestOptimizer",  # 向后兼容
+    "BacktestOptimizer",
 ]

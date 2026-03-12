@@ -18,8 +18,8 @@ from smart_threshold.data.generator import DataGenerator, ScenarioType
 # 配置管理
 from smart_threshold.config import ConfigManager
 
-# 向后兼容
-from smart_threshold.core.backtest_optimizer import BacktestOptimizer
+# 向后兼容别名
+from smart_threshold.core.param_optimizer import ParamOptimizer as BacktestOptimizer
 
 __all__ = [
     # 核心功能
