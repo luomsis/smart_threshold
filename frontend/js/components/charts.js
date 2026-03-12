@@ -159,7 +159,7 @@ const Charts = {
             grid: {
                 left: '3%',
                 right: '4%',
-                bottom: '3%',
+                bottom: '15%',
                 top: options.title ? '15%' : '10%',
                 containLabel: true,
             },
@@ -172,10 +172,7 @@ const Charts = {
                 },
                 axisLabel: {
                     color: '#8b9199',
-                    formatter: (value) => {
-                        const date = new Date(value);
-                        return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
-                    },
+                    formatter: (value) => Helpers.formatChartDate(value),
                 },
             },
             yAxis: {
@@ -324,8 +321,7 @@ const Charts = {
                 borderColor: '#30363d',
                 textStyle: { color: '#e6e8eb' },
                 formatter: (params) => {
-                    const date = new Date(params[0].axisValue);
-                    const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                    const dateStr = Helpers.formatChartDate(params[0].axisValue);
                     let html = `<div style="font-weight:600;margin-bottom:8px;border-bottom:1px solid #30363d;padding-bottom:5px;">${dateStr}</div>`;
 
                     // 历史数据
@@ -371,7 +367,10 @@ const Charts = {
                 data: allTimestamps,
                 boundaryGap: false,
                 axisLine: { lineStyle: { color: '#30363d' } },
-                axisLabel: { color: '#8b9199' },
+                axisLabel: {
+                    color: '#8b9199',
+                    formatter: (value) => Helpers.formatChartDate(value),
+                },
                 splitLine: { show: false },
             },
             yAxis: {
