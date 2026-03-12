@@ -55,6 +55,22 @@ class DataSourceConfigCreate(DataSourceConfigBase):
     pass
 
 
+class DataSourceConfigUpdate(BaseModel):
+    """更新数据源配置"""
+    name: Optional[str] = None
+    source_type: Optional[DataSourceType] = None
+    url: Optional[str] = None
+    enabled: Optional[bool] = None
+    auth_token: Optional[str] = None
+    headers: Optional[Dict[str, str]] = None
+    default_timeout: Optional[int] = None
+    db_host: Optional[str] = None
+    db_port: Optional[int] = None
+    db_name: Optional[str] = None
+    db_user: Optional[str] = None
+    db_password: Optional[str] = None
+
+
 class DataSourceConfigResponse(DataSourceConfigBase):
     """数据源配置响应"""
     id: str = Field(..., description="数据源ID")

@@ -3,8 +3,8 @@
  */
 
 const API = {
-    // Base URL - will be configurable
-    baseUrl: window.location.protocol + '//' + window.location.hostname + ':8000',
+    // Base URL - from config.js or default to localhost:8010
+    baseUrl: window.BACKEND_URL || 'http://localhost:8010',
 
     /**
      * Set base URL
@@ -17,7 +17,9 @@ const API = {
      * Make HTTP request
      */
     async request(method, path, options = {}) {
-        const url = `${this.baseUrl}${path}`;
+        // 移除路径中可能存在的 /api/v1 前缀，避免重复
+        const cleanPath = path.replace(/^\/api\/v1/, '');
+        const url = `${this.baseUrl}/api/v1${cleanPath}`;
         const config = {
             method,
             headers: {
@@ -48,56 +50,63 @@ const API = {
      * List all data sources
      */
     async listDataSources() {
-        return this.request('GET', '/api/v1/datasources');
+        return this.request('GET', '/datasources');
     },
 
     /**
      * Get data source by ID
      */
     async getDataSource(id) {
-        return this.request('GET', `/api/v1/datasources/${id}`);
+        return this.request('GET', `/datasources/${id}`);
     },
 
     /**
      * Create data source
      */
     async createDataSource(data) {
-        return this.request('POST', '/api/v1/datasources', { body: data });
+        return this.request('POST', '/datasources', { body: data });
+    },
+
+    /**
+     * Update data source
+     */
+    async updateDataSource(id, data) {
+        return this.request('PUT', `/datasources/${id}`, { body: data });
     },
 
     /**
      * Delete data source
      */
     async deleteDataSource(id) {
-        return this.request('DELETE', `/api/v1/datasources/${id}`);
+        return this.request('DELETE', `/datasources/${id}`);
     },
 
     /**
      * List metrics from data source
      */
     async listMetrics(dataSourceId) {
-        return this.request('GET', `/api/v1/datasources/${dataSourceId}/metrics`);
+        return this.request('GET', `/datasources/${dataSourceId}/metrics`);
     },
 
     /**
      * List labels from data source
      */
     async listLabels(dataSourceId) {
-        return this.request('GET', `/api/v1/datasources/${dataSourceId}/labels`);
+        return this.request('GET', `/datasources/${dataSourceId}/labels`);
     },
 
     /**
      * Get label values
      */
     async getLabelValues(dataSourceId, labelName) {
-        return this.request('GET', `/api/v1/datasources/${dataSourceId}/labels/${encodeURIComponent(labelName)}`);
+        return this.request('GET', `/datasources/${dataSourceId}/labels/${encodeURIComponent(labelName)}`);
     },
 
     /**
      * Query data
      */
     async queryData(dataSourceId, query, timeRange) {
-        return this.request('POST', `/api/v1/datasources/${dataSourceId}/query`, {
+        return this.request('POST', `/datasources/${dataSourceId}/query`, {
             body: {
                 query,
                 time_range: timeRange,
@@ -115,35 +124,35 @@ const API = {
         if (filters.model_type) params.append('model_type', filters.model_type);
         if (filters.category) params.append('category', filters.category);
         const query = params.toString() ? `?${params.toString()}` : '';
-        return this.request('GET', `/api/v1/models${query}`);
+        return this.request('GET', `/models${query}`);
     },
 
     /**
      * Get model by ID
      */
     async getModel(id) {
-        return this.request('GET', `/api/v1/models/${id}`);
+        return this.request('GET', `/models/${id}`);
     },
 
     /**
      * Create model
      */
     async createModel(data) {
-        return this.request('POST', '/api/v1/models', { body: data });
+        return this.request('POST', '/models', { body: data });
     },
 
     /**
      * Update model
      */
     async updateModel(id, data) {
-        return this.request('PUT', `/api/v1/models/${id}`, { body: data });
+        return this.request('PUT', `/models/${id}`, { body: data });
     },
 
     /**
      * Delete model
      */
     async deleteModel(id) {
-        return this.request('DELETE', `/api/v1/models/${id}`);
+        return this.request('DELETE', `/models/${id}`);
     },
 
     // ==================== Predictions ====================
@@ -152,7 +161,7 @@ const API = {
      * Analyze features
      */
     async analyzeFeatures(data, timestamps) {
-        return this.request('POST', '/api/v1/predictions/analyze', {
+        return this.request('POST', '/predictions/analyze', {
             body: { data, timestamps },
         });
     },
@@ -161,7 +170,7 @@ const API = {
      * Run prediction
      */
     async predict(modelId, data, timestamps, periods = 1440, freq = '1min') {
-        return this.request('POST', '/api/v1/predictions/predict', {
+        return this.request('POST', '/predictions/predict', {
             body: {
                 model_id: modelId,
                 data,
@@ -176,7 +185,7 @@ const API = {
      * Compare models
      */
     async compareModels(modelIds, data, timestamps, trainStart, trainEnd) {
-        return this.request('POST', '/api/v1/predictions/compare', {
+        return this.request('POST', '/predictions/compare', {
             body: {
                 model_ids: modelIds,
                 data,
@@ -193,7 +202,7 @@ const API = {
      * Health check
      */
     async healthCheck() {
-        return this.request('GET', '/api/health');
+        return this.request('GET', '/health');
     },
 };
 

@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PID_FILE="$SCRIPT_DIR/.backend.pid"
 LOG_FILE="$SCRIPT_DIR/backend.log"
 HOST="0.0.0.0"
-PORT="8000"
+PORT="8010"
 
 cd "$SCRIPT_DIR"
 

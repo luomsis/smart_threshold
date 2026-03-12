@@ -32,6 +32,9 @@ dev = [
     "black>=23.0.0",
     "ruff>=0.1.0",
 ]
+timescaledb = [
+    "psycopg2-binary>=2.9.0",
+]
 
 [project.scripts]
 smart-threshold = "smart_threshold.cli:main"

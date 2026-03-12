@@ -6,7 +6,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FRONTEND_DIR="$SCRIPT_DIR/frontend"
 PID_FILE="$SCRIPT_DIR/.frontend.pid"
 LOG_FILE="$SCRIPT_DIR/frontend.log"
-PORT="3000"
+PORT="8011"
+# Default backend URL (can be overridden via command line or environment variable)
+BACKEND_URL="${BACKEND_URL:-http://localhost:8010}"
 
 cd "$FRONTEND_DIR"
 
@@ -53,6 +55,12 @@ start() {
     log_info "Starting SmartThreshold Frontend server..."
     log_info "Open http://localhost:$PORT in your browser"
 
+    # Create config.js with backend URL
+    cat > "$FRONTEND_DIR/js/config.js" << EOF
+// Backend API configuration
+window.BACKEND_URL = "$BACKEND_URL";
+EOF
+
     # Start server in background
     nohup python3 -m http.server $PORT > "$LOG_FILE" 2>&1 &
     local pid=$!
@@ -61,6 +69,7 @@ start() {
     sleep 1
     if is_running; then
         log_info "Frontend server started (PID: $pid)"
+        log_info "Backend URL: $BACKEND_URL"
         return 0
     else
         log_error "Failed to start frontend server"
@@ -136,12 +145,19 @@ dev() {
 
     log_info "Starting SmartThreshold Frontend server in development mode..."
     log_info "Open http://localhost:$PORT in your browser"
+    log_info "Backend URL: $BACKEND_URL"
+
+    # Create config.js with backend URL
+    cat > "$FRONTEND_DIR/js/config.js" << EOF
+// Backend API configuration
+window.BACKEND_URL = "$BACKEND_URL";
+EOF
 
     python3 -m http.server $PORT
 }
 
 usage() {
-    echo "Usage: $0 {start|stop|restart|status|logs|dev}"
+    echo "Usage: $0 {start|stop|restart|status|logs|dev} [backend_url]"
     echo ""
     echo "Commands:"
     echo "  start   - Start frontend server in background"
@@ -150,10 +166,35 @@ usage() {
     echo "  status  - Check if frontend server is running"
     echo "  logs    - Follow frontend server logs"
     echo "  dev     - Start frontend server in foreground"
+    echo ""
+    echo "Arguments:"
+    echo "  backend_url - Backend server URL (default: http://localhost:8010)"
+    echo "                Can also be set via BACKEND_URL environment variable"
+    echo ""
+    echo "Examples:"
+    echo "  $0 start                    # Use default backend URL"
+    echo "  $0 start http://192.168.1.100:8010  # Custom backend URL"
+    echo "  BACKEND_URL=http://remote:8010 $0 start  # Via environment variable"
 }
 
 # Main
-case "${1:-}" in
+# Check for backend URL as first argument
+if [ -n "${1:-}" ]; then
+    case "$1" in
+        start|stop|restart|status|logs|dev)
+            CMD="$1"
+            ;;
+        *)
+            # Treat as backend URL
+            BACKEND_URL="$1"
+            CMD="${2:-start}"
+            ;;
+    esac
+else
+    CMD="start"
+fi
+
+case "$CMD" in
     start)
         start
         ;;

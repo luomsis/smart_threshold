@@ -2,14 +2,17 @@
 Data source API router.
 """
 
+import json
 import uuid
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, status
 
 from backend.app.schemas import (
     DataSourceConfigCreate,
+    DataSourceConfigUpdate,
     DataSourceConfigResponse,
     DataSourceType,
     MetricMetadata,
@@ -24,6 +27,50 @@ router = APIRouter()
 
 # In-memory data source storage
 _datasources: Dict[str, DataSourceConfigResponse] = {}
+
+# 配置文件路径
+CONFIG_DIR = Path(__file__).parent.parent.parent.parent / "config"
+CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+DATASOURCES_FILE = CONFIG_DIR / "datasources.json"
+
+
+def _load_datasources() -> Dict[str, DataSourceConfigResponse]:
+    """从 JSON 文件加载数据源配置"""
+    if not DATASOURCES_FILE.exists():
+        return {}
+
+    try:
+        with open(DATASOURCES_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        result = {}
+        for ds_data in data:
+            # 将字符串转换为枚举
+            if isinstance(ds_data.get("source_type"), str):
+                ds_data["source_type"] = DataSourceType(ds_data["source_type"])
+            result[ds_data["id"]] = DataSourceConfigResponse(**ds_data)
+        return result
+    except Exception as e:
+        print(f"加载数据源配置失败: {e}")
+        return {}
+
+
+def _save_datasources(datasources: Dict[str, DataSourceConfigResponse]) -> None:
+    """保存数据源配置到 JSON 文件"""
+    data = []
+    for ds in datasources.values():
+        ds_dict = ds.model_dump()
+        # 将枚举转换为字符串
+        if hasattr(ds_dict.get("source_type"), "value"):
+            ds_dict["source_type"] = ds_dict["source_type"].value
+        data.append(ds_dict)
+
+    with open(DATASOURCES_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+# 启动时加载数据源
+_datasources = _load_datasources()
 
 
 def _get_datasource_instance(ds_id: str):
@@ -76,6 +123,8 @@ async def list_datasources():
             url="mock://localhost",
             enabled=True,
         )
+        # 持久化到文件
+        _save_datasources(_datasources)
     return list(_datasources.values())
 
 
@@ -88,6 +137,8 @@ async def create_datasource(config: DataSourceConfigCreate):
         **config.model_dump(),
     )
     _datasources[ds_id] = ds_response
+    # 持久化到文件
+    _save_datasources(_datasources)
     return ds_response
 
 
@@ -103,6 +154,32 @@ async def get_datasource(ds_id: str):
     return ds
 
 
+@router.put("/{ds_id}", response_model=DataSourceConfigResponse)
+async def update_datasource(ds_id: str, updates: DataSourceConfigUpdate):
+    """Update data source."""
+    if ds_id not in _datasources:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"DataSource {ds_id} not found"
+        )
+
+    # 获取现有配置
+    existing = _datasources[ds_id]
+    existing_dict = existing.model_dump()
+
+    # 过滤掉 None 值并更新
+    update_dict = {k: v for k, v in updates.model_dump().items() if v is not None}
+    existing_dict.update(update_dict)
+
+    # 创建更新后的配置
+    updated = DataSourceConfigResponse(**existing_dict)
+    _datasources[ds_id] = updated
+
+    # 持久化到文件
+    _save_datasources(_datasources)
+    return updated
+
+
 @router.delete("/{ds_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_datasource(ds_id: str):
     """Delete a data source."""
@@ -112,6 +189,8 @@ async def delete_datasource(ds_id: str):
             detail=f"DataSource {ds_id} not found"
         )
     del _datasources[ds_id]
+    # 持久化到文件
+    _save_datasources(_datasources)
 
 
 @router.get("/{ds_id}/metrics", response_model=List[MetricMetadata])

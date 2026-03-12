@@ -62,13 +62,48 @@ const Dashboard = {
             this.state.dataSources = dataSources;
 
             if (dataSources.length > 0) {
-                this.state.currentDataSource = dataSources[0];
+                // 优先使用用户选择的数据源
+                const currentDsId = DataSources.getCurrentId();
+                const selectedDs = currentDsId
+                    ? dataSources.find(ds => ds.id === currentDsId)
+                    : null;
+
+                this.state.currentDataSource = selectedDs || dataSources[0];
                 Sidebar.updateCurrentDataSource(this.state.currentDataSource.name);
                 await this.loadMetrics();
             }
         } catch (error) {
             Helpers.showToast('加载数据源失败: ' + error.message, 'error');
         }
+    },
+
+    /**
+     * Switch to a different data source
+     */
+    async switchDataSource(dsId) {
+        const ds = this.state.dataSources.find(d => d.id === dsId);
+        if (!ds) {
+            Helpers.showToast('数据源不存在', 'error');
+            return;
+        }
+
+        this.state.currentDataSource = ds;
+        Sidebar.updateCurrentDataSource(ds.name);
+
+        // Reset state
+        this.state.queryData = null;
+        this.state.metrics = [];
+        this.state.trainStart = null;
+        this.state.trainEnd = null;
+
+        // Hide panels
+        document.getElementById('stats-panel').style.display = 'none';
+        document.getElementById('chart-panel').style.display = 'none';
+        document.getElementById('training-panel').style.display = 'none';
+        document.getElementById('comparison-panel').style.display = 'none';
+        document.getElementById('results-panel').style.display = 'none';
+
+        await this.loadMetrics();
     },
 
     /**

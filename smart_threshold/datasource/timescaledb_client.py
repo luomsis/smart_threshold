@@ -271,15 +271,22 @@ class TimescaleDBDataSource:
             df = pd.DataFrame(results)
             df['time'] = pd.to_datetime(df['time'])
 
-            # 按 labels 分组
-            grouped = df.groupby('labels')
+            # 将 labels 列转换为字符串以便分组（字典不可哈希）
+            df['labels_str'] = df['labels'].apply(lambda x: json.dumps(x, sort_keys=True) if isinstance(x, dict) else str(x))
+
+            # 按 labels_str 分组
+            grouped = df.groupby('labels_str')
 
             metric_data_list = []
             for labels_str, group in grouped:
+                # 解析 labels
                 if isinstance(labels_str, str):
-                    labels_dict = json.loads(labels_str)
+                    try:
+                        labels_dict = json.loads(labels_str)
+                    except json.JSONDecodeError:
+                        labels_dict = {}
                 else:
-                    labels_dict = labels_str
+                    labels_dict = labels_str if isinstance(labels_str, dict) else {}
 
                 metric_data_list.append(MetricData(
                     name=query,
