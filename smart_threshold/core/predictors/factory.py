@@ -71,7 +71,7 @@ class PredictorFactory:
     @classmethod
     def is_registered(cls, predictor_type: str) -> bool:
         """检查预测器类型是否已注册"""
-        return predictor_type in cls._predicters
+        return predictor_type in cls._predictors
 
     @classmethod
     def get_predictor_class(cls, predictor_type: str) -> Optional[Type[BasePredictor]]:

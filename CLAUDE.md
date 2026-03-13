@@ -109,6 +109,9 @@ smart_threshold/
 ## 测试与调试
 
 ```bash
+# 运行单元测试（每次修改代码后必须运行）
+uv run pytest tests/ -v
+
 # 查看后端日志
 ./run_backend.sh logs
 
@@ -118,6 +121,13 @@ smart_threshold/
 # 测试 API
 curl http://localhost:8010/api/health
 ```
+
+**测试文件**：
+- `tests/test_feature_analyzer.py` - 特征分析测试
+- `tests/test_model_router.py` - 模型路由测试
+- `tests/test_predictors.py` - 预测器测试
+- `tests/test_factory.py` - 预测器工厂测试
+- `tests/test_generator.py` - 数据生成器测试
 
 ## 注意事项
 
