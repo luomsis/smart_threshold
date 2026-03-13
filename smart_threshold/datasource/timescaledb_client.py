@@ -6,6 +6,49 @@ TimescaleDB 数据源客户端
 数据表结构:
 - series_meta: 时序元数据表
 - series_points: 时序数据点表 (TimescaleDB hypertable)
+
+DDL 语句:
+
+CREATE TABLE public.series_meta (
+    id bigserial NOT NULL,
+    endpoint text NOT NULL,
+    metric text NOT NULL,
+    labels jsonb NOT NULL DEFAULT '{}'::jsonb,
+    labels_hash text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT series_meta_endpoint_metric_labels_hash_key UNIQUE (endpoint, metric, labels_hash),
+    CONSTRAINT series_meta_pkey PRIMARY KEY (id)
+);
+
+CREATE INDEX idx_series_meta_labels_hash ON public.series_meta USING btree (labels_hash);
+CREATE INDEX idx_series_meta_metric ON public.series_meta USING btree (metric);
+CREATE INDEX series_meta_endpoint_idx ON public.series_meta USING btree (endpoint);
+CREATE INDEX series_meta_endpoint_metric_idx ON public.series_meta USING btree (endpoint, metric);
+
+CREATE TABLE public.series_points (
+    "time" timestamptz NOT NULL,
+    series_id int8 NOT NULL,
+    value float8 NOT NULL,
+    CONSTRAINT series_points_series_id_fkey FOREIGN KEY (series_id) REFERENCES public.series_meta(id)
+);
+
+CREATE INDEX series_points_series_time_idx ON public.series_points USING btree (series_id, "time" DESC);
+CREATE INDEX series_points_time_idx ON public.series_points USING btree ("time" DESC);
+
+-- TimescaleDB hypertable trigger
+CREATE TRIGGER ts_insert_blocker BEFORE INSERT ON public.series_points
+    FOR EACH ROW EXECUTE FUNCTION _timescaledb_functions.insert_blocker();
+
+-- 创建 hypertable (需要手动执行)
+-- SELECT create_hypertable('series_points', 'time', if_not_exists => TRUE);
+
+字段说明:
+- series_meta.endpoint: 端点标识（如 /api/metrics），独立列而非 labels 中的字段
+- series_meta.metric: 指标名称
+- series_meta.labels: 其他标签的 JSON 字段（如 host, region 等）
+- series_meta.labels_hash: labels 的 MD5 哈希，用于唯一标识
+- series_points.time: 数据点时间戳（UTC）
+- series_points.value: 数据点值
 """
 
 import time
@@ -173,6 +216,9 @@ class TimescaleDBDataSource:
         """
         列出所有标签名称
 
+        注意：endpoint 是独立列，不属于 labels，不在此列表中。
+        如需获取 endpoint 列表，请使用 get_endpoints() 方法。
+
         Returns:
             标签名称列表
         """
@@ -184,9 +230,29 @@ class TimescaleDBDataSource:
         results = self._execute_query(sql)
         return [row[0] for row in results]
 
+    def get_endpoints(self) -> List[str]:
+        """
+        获取所有 endpoint 列表
+
+        endpoint 在 TimescaleDB 中是独立列，不是 labels JSON 中的字段。
+
+        Returns:
+            endpoint 列表
+        """
+        sql = """
+            SELECT DISTINCT endpoint
+            FROM series_meta
+            ORDER BY endpoint
+        """
+        results = self._execute_query(sql)
+        return [row[0] for row in results if row[0]]
+
     def get_label_values(self, label_name: str) -> LabelValues:
         """
         获取标签的所有值
+
+        注意：endpoint 是独立列，不存储在 labels JSON 中。
+        如需获取 endpoint 列表，请使用 get_endpoints() 方法。
 
         Args:
             label_name: 标签名称
@@ -205,6 +271,35 @@ class TimescaleDBDataSource:
             label=label_name,
             values=[row[0] for row in results if row[0]]
         )
+
+    def get_time_range(self, endpoint: Optional[str] = None) -> Dict[str, Optional[datetime]]:
+        """
+        获取数据的时间范围
+
+        Args:
+            endpoint: 可选的端点过滤
+
+        Returns:
+            包含 min_time 和 max_time 的字典
+        """
+        sql = """
+            SELECT MIN(p.time), MAX(p.time)
+            FROM series_points p
+            JOIN series_meta m ON p.series_id = m.id
+        """
+        params = []
+
+        if endpoint:
+            sql += " WHERE m.endpoint = %s"
+            params.append(endpoint)
+
+        results = self._execute_query(sql, tuple(params) if params else None)
+        if results and results[0]:
+            return {
+                "min_time": results[0][0],
+                "max_time": results[0][1]
+            }
+        return {"min_time": None, "max_time": None}
 
     def query_range(
         self,

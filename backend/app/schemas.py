@@ -126,6 +126,7 @@ class QueryRequest(BaseModel):
     """查询请求"""
     query: str = Field(..., description="PromQL查询语句")
     time_range: TimeRange = Field(..., description="时间范围")
+    endpoint: Optional[str] = Field(None, description="Endpoint 过滤")
 
 
 # ==================== Model Config Schemas ====================

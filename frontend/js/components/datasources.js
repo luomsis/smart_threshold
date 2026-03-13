@@ -5,7 +5,7 @@
 const DataSources = {
     state: {
         dataSources: [],
-        currentDsId: localStorage.getItem('currentDataSourceId') || null,
+        defaultDsId: null,
     },
 
     /**
@@ -28,8 +28,18 @@ const DataSources = {
      */
     async loadDataSources() {
         try {
+            // Load all data sources
             const dataSources = await API.listDataSources();
             this.state.dataSources = dataSources;
+
+            // Get default data source
+            try {
+                const defaultDs = await API.getDefaultDataSource();
+                this.state.defaultDsId = defaultDs ? defaultDs.id : null;
+            } catch (e) {
+                this.state.defaultDsId = null;
+            }
+
             this.displayDataSources();
         } catch (error) {
             Helpers.showToast('加载数据源失败: ' + error.message, 'error');
@@ -43,10 +53,20 @@ const DataSources = {
         const container = document.getElementById('datasources-list');
         container.innerHTML = '';
 
+        if (this.state.dataSources.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <span class="empty-state-icon">📭</span>
+                    <span class="empty-state-text">暂无数据源，请点击"添加数据源"创建</span>
+                </div>
+            `;
+            return;
+        }
+
         this.state.dataSources.forEach(ds => {
             const card = document.createElement('div');
-            const isCurrent = ds.id === this.state.currentDsId;
-            card.className = 'datasource-card' + (isCurrent ? ' current' : '');
+            const isDefault = ds.id === this.state.defaultDsId;
+            card.className = 'datasource-card' + (isDefault ? ' current' : '');
 
             const typeTag = ds.source_type === 'mock'
                 ? '<span class="tag tag-custom">Mock</span>'
@@ -56,22 +76,20 @@ const DataSources = {
                 ? '<span class="tag tag-success">已启用</span>'
                 : '<span class="tag tag-disabled">已禁用</span>';
 
-            const currentBadge = isCurrent
-                ? '<span class="tag tag-primary">当前数据源</span>'
+            const defaultBadge = isDefault
+                ? '<span class="tag tag-primary">默认数据源</span>'
                 : '';
 
             card.innerHTML = `
                 <div class="datasource-info">
-                    <div class="datasource-name">${ds.name} ${typeTag} ${enabledTag} ${currentBadge}</div>
+                    <div class="datasource-name">${ds.name} ${typeTag} ${enabledTag} ${defaultBadge}</div>
                     <div class="datasource-url">${ds.url}</div>
                 </div>
                 <div class="datasource-actions">
-                    ${!isCurrent ? `<button class="btn btn-primary" onclick="DataSources.setCurrent('${ds.id}')">设为当前</button>` : ''}
+                    <button class="btn btn-primary" onclick="DataSources.setAsDefault('${ds.id}')" ${isDefault ? 'disabled' : ''}>设为默认</button>
                     <button class="btn btn-secondary" onclick="DataSources.showEditModal('${ds.id}')">编辑</button>
-                    ${ds.source_type !== 'mock' ? `
-                        <button class="btn btn-secondary" onclick="DataSources.testConnection('${ds.id}')">测试连接</button>
-                        <button class="btn btn-danger" onclick="DataSources.deleteDataSource('${ds.id}')">删除</button>
-                    ` : ''}
+                    <button class="btn btn-secondary" onclick="DataSources.testConnection('${ds.id}')">测试连接</button>
+                    <button class="btn btn-danger" onclick="DataSources.deleteDataSource('${ds.id}')">删除</button>
                 </div>
             `;
 
@@ -80,13 +98,13 @@ const DataSources = {
     },
 
     /**
-     * Set current data source
+     * Set as default data source
      */
-    setCurrent(dsId) {
-        this.state.currentDsId = dsId;
+    async setAsDefault(dsId) {
+        this.state.defaultDsId = dsId;
         localStorage.setItem('currentDataSourceId', dsId);
         this.displayDataSources();
-        Helpers.showToast('已切换数据源', 'success');
+        Helpers.showToast('已设为默认数据源', 'success');
 
         // Notify Dashboard to switch data source
         if (typeof Dashboard !== 'undefined') {
@@ -98,7 +116,7 @@ const DataSources = {
      * Get current data source ID
      */
     getCurrentId() {
-        return this.state.currentDsId;
+        return this.state.defaultDsId;
     },
 
     /**
@@ -396,6 +414,13 @@ const DataSources = {
 
         try {
             await API.deleteDataSource(dsId);
+
+            // Clear default if deleted was default
+            if (this.state.defaultDsId === dsId) {
+                this.state.defaultDsId = null;
+                localStorage.removeItem('currentDataSourceId');
+            }
+
             Helpers.showToast('数据源已删除', 'success');
             await this.loadDataSources();
         } catch (error) {

@@ -1,20 +1,5 @@
 [
   {
-    "name": "Mock 数据源",
-    "source_type": "mock",
-    "url": "mock://localhost",
-    "enabled": true,
-    "auth_token": null,
-    "headers": {},
-    "default_timeout": 30,
-    "db_host": "localhost",
-    "db_port": 5432,
-    "db_name": "postgres",
-    "db_user": "postgres",
-    "db_password": "",
-    "id": "4bc8d0bd-256b-4edb-892e-83ee627274ae"
-  },
-  {
     "name": "test",
     "source_type": "timescaledb",
     "url": "postgresql://127.0.0.1:5432/testdb",

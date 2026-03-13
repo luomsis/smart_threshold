@@ -7,6 +7,7 @@ const Dashboard = {
     state: {
         dataSources: [],
         currentDataSource: null,
+        endpoints: [],
         metrics: [],
         queryData: null,
         trainStart: null,
@@ -14,6 +15,7 @@ const Dashboard = {
         models: [],
         selectedModels: [],
         comparisonResults: null,
+        dataTimeRange: null,  // 数据时间范围 { min_time, max_time }
     },
 
     /**
@@ -29,12 +31,14 @@ const Dashboard = {
      * Bind event listeners
      */
     bindEvents() {
-        // Time range slider
-        const timeRange = document.getElementById('time-range');
-        const timeRangeValue = document.getElementById('time-range-value');
-        timeRange.addEventListener('input', () => {
-            timeRangeValue.textContent = `${timeRange.value} 天`;
-        });
+        // Datasource selection
+        document.getElementById('datasource-select').addEventListener('change', (e) => this.onDatasourceChange(e.target.value));
+
+        // Endpoint selection
+        document.getElementById('endpoint-select').addEventListener('change', (e) => this.onEndpointChange(e.target.value));
+
+        // Metric selection
+        document.getElementById('metric-select').addEventListener('change', () => this.onMetricChange());
 
         // Query button
         document.getElementById('btn-query').addEventListener('click', () => this.executeQuery());
@@ -46,31 +50,40 @@ const Dashboard = {
         // Compare button
         document.getElementById('btn-compare').addEventListener('click', () => this.runComparison());
 
-        // Label selection
-        document.getElementById('label-select').addEventListener('change', (e) => this.loadLabelValues(e.target.value));
-
         // Refresh button
         document.getElementById('btn-refresh').addEventListener('click', () => this.refresh());
     },
 
     /**
-     * Load data sources
+     * Load data sources and populate datasource dropdown
      */
     async loadDataSources() {
         try {
+            // Load all data sources for the dropdown
             const dataSources = await API.listDataSources();
             this.state.dataSources = dataSources;
 
-            if (dataSources.length > 0) {
-                // 优先使用用户选择的数据源
-                const currentDsId = DataSources.getCurrentId();
-                const selectedDs = currentDsId
-                    ? dataSources.find(ds => ds.id === currentDsId)
-                    : null;
+            // Populate datasource dropdown
+            const datasourceSelect = document.getElementById('datasource-select');
+            datasourceSelect.innerHTML = '<option value="">请选择数据源...</option>';
 
-                this.state.currentDataSource = selectedDs || dataSources[0];
-                Sidebar.updateCurrentDataSource(this.state.currentDataSource.name);
-                await this.loadMetrics();
+            dataSources.forEach(ds => {
+                const option = document.createElement('option');
+                option.value = ds.id;
+                option.textContent = ds.name;
+                datasourceSelect.appendChild(option);
+            });
+
+            // Get default data source from backend
+            try {
+                const defaultDs = await API.getDefaultDataSource();
+                if (defaultDs) {
+                    datasourceSelect.value = defaultDs.id;
+                    await this.onDatasourceChange(defaultDs.id);
+                }
+            } catch (e) {
+                // No data source available, show empty state
+                Sidebar.updateCurrentDataSource('未配置');
             }
         } catch (error) {
             Helpers.showToast('加载数据源失败: ' + error.message, 'error');
@@ -78,9 +91,16 @@ const Dashboard = {
     },
 
     /**
-     * Switch to a different data source
+     * Handle datasource change
      */
-    async switchDataSource(dsId) {
+    async onDatasourceChange(dsId) {
+        if (!dsId) {
+            this.state.currentDataSource = null;
+            document.getElementById('endpoint-select').innerHTML = '<option value="">请选择 Endpoint...</option>';
+            document.getElementById('metric-select').innerHTML = '<option value="">请选择指标...</option>';
+            return;
+        }
+
         const ds = this.state.dataSources.find(d => d.id === dsId);
         if (!ds) {
             Helpers.showToast('数据源不存在', 'error');
@@ -92,9 +112,11 @@ const Dashboard = {
 
         // Reset state
         this.state.queryData = null;
+        this.state.endpoints = [];
         this.state.metrics = [];
         this.state.trainStart = null;
         this.state.trainEnd = null;
+        this.state.dataTimeRange = null;
 
         // Hide panels
         document.getElementById('stats-panel').style.display = 'none';
@@ -103,11 +125,141 @@ const Dashboard = {
         document.getElementById('comparison-panel').style.display = 'none';
         document.getElementById('results-panel').style.display = 'none';
 
+        // Load time range for this datasource
+        await this.loadDataTimeRange();
+
+        // Load endpoints for this datasource
+        await this.loadEndpoints();
+    },
+
+    /**
+     * Load data time range from data source
+     */
+    async loadDataTimeRange() {
+        if (!this.state.currentDataSource) return;
+
+        try {
+            const timeRange = await API.getTimeRange(this.state.currentDataSource.id);
+            this.state.dataTimeRange = timeRange;
+        } catch (e) {
+            // Time range not available, will use current time
+            this.state.dataTimeRange = null;
+        }
+    },
+
+    /**
+     * Get query time range based on data's max_time and selected period
+     */
+    getQueryTimeRange(days) {
+        let endTime;
+        if (this.state.dataTimeRange && this.state.dataTimeRange.max_time) {
+            // Use data's max_time as end time
+            endTime = new Date(this.state.dataTimeRange.max_time);
+        } else {
+            // Fallback to current time
+            endTime = new Date();
+        }
+
+        // Calculate start time based on period
+        const startTime = new Date(endTime.getTime() - days * 24 * 60 * 60 * 1000);
+
+        return { start: startTime, end: endTime };
+    },
+
+    /**
+     * Load endpoints (endpoint label values)
+     */
+    async loadEndpoints() {
+        if (!this.state.currentDataSource) return;
+
+        const select = document.getElementById('endpoint-select');
+        if (!select) return;
+
+        select.innerHTML = '<option value="">请选择 Endpoint...</option>';
+        select.disabled = false;
+
+        try {
+            const result = await API.listEndpoints(this.state.currentDataSource.id);
+            this.state.endpoints = result.values || [];
+
+            this.state.endpoints.forEach(endpoint => {
+                const option = document.createElement('option');
+                option.value = endpoint;
+                option.textContent = endpoint;
+                select.appendChild(option);
+            });
+
+            // Auto-select first endpoint
+            if (this.state.endpoints.length > 0) {
+                select.value = this.state.endpoints[0];
+                await this.onEndpointChange(this.state.endpoints[0]);
+            } else {
+                // No endpoint label, load metrics directly
+                select.disabled = true;
+                await this.loadMetrics();
+            }
+        } catch (error) {
+            // If endpoint label doesn't exist, disable endpoint select and load metrics directly
+            select.disabled = true;
+            select.innerHTML = '<option value="">-</option>';
+            await this.loadMetrics();
+        }
+    },
+
+    /**
+     * Handle endpoint change
+     */
+    async onEndpointChange(endpoint) {
+        const metricSelect = document.getElementById('metric-select');
+        if (!endpoint) {
+            if (metricSelect) {
+                metricSelect.innerHTML = '<option value="">请选择指标...</option>';
+            }
+            return;
+        }
+
+        // Reload time range for this specific endpoint
+        await this.loadDataTimeRangeForEndpoint(endpoint);
+
+        // Load metrics for this endpoint
         await this.loadMetrics();
     },
 
     /**
-     * Load metrics
+     * Load data time range for a specific endpoint
+     */
+    async loadDataTimeRangeForEndpoint(endpoint) {
+        if (!this.state.currentDataSource) return;
+
+        try {
+            const timeRange = await API.getTimeRange(this.state.currentDataSource.id, endpoint);
+            this.state.dataTimeRange = timeRange;
+        } catch (e) {
+            // Time range not available
+            this.state.dataTimeRange = null;
+        }
+    },
+
+    /**
+     * Handle metric change - auto execute query
+     */
+    async onMetricChange() {
+        const metric = document.getElementById('metric-select').value;
+        if (metric) {
+            await this.executeQuery();
+        }
+    },
+
+    /**
+     * Switch to a different data source (called from sidebar)
+     */
+    async switchDataSource(dsId) {
+        document.getElementById('datasource-select').value = dsId;
+        await this.onDatasourceChange(dsId);
+    },
+
+    /**
+     * Load metrics for current endpoint
      */
     async loadMetrics() {
         if (!this.state.currentDataSource) return;
@@ -117,7 +269,10 @@ const Dashboard = {
             this.state.metrics = metrics;
 
             const select = document.getElementById('metric-select');
+            if (!select) return;
+
             select.innerHTML = '<option value="">请选择指标...</option>';
+
             metrics.forEach(m => {
                 const option = document.createElement('option');
                 option.value = m.name;
@@ -125,55 +280,13 @@ const Dashboard = {
                 select.appendChild(option);
             });
 
-            // Also load labels
-            await this.loadLabels();
+            // Auto-select first metric and trigger query
+            if (metrics.length > 0) {
+                select.value = metrics[0].name;
+                await this.executeQuery();
+            }
         } catch (error) {
             Helpers.showToast('加载指标失败: ' + error.message, 'error');
-        }
-    },
-
-    /**
-     * Load labels
-     */
-    async loadLabels() {
-        if (!this.state.currentDataSource) return;
-
-        try {
-            const labels = await API.listLabels(this.state.currentDataSource.id);
-            const select = document.getElementById('label-select');
-            select.innerHTML = '<option value="">请选择标签...</option>';
-            labels.forEach(label => {
-                const option = document.createElement('option');
-                option.value = label;
-                option.textContent = label;
-                select.appendChild(option);
-            });
-        } catch (error) {
-            Helpers.showToast('加载标签失败: ' + error.message, 'error');
-        }
-    },
-
-    /**
-     * Load label values
-     */
-    async loadLabelValues(labelName) {
-        if (!this.state.currentDataSource || !labelName) {
-            document.getElementById('label-value-select').innerHTML = '<option value="">全部</option>';
-            return;
-        }
-
-        try {
-            const result = await API.getLabelValues(this.state.currentDataSource.id, labelName);
-            const select = document.getElementById('label-value-select');
-            select.innerHTML = '<option value="">全部</option>';
-            result.values.forEach(v => {
-                const option = document.createElement('option');
-                option.value = v;
-                option.textContent = v;
-                select.appendChild(option);
-            });
-        } catch (error) {
-            Helpers.showToast('加载标签值失败: ' + error.message, 'error');
         }
     },
 
@@ -187,10 +300,21 @@ const Dashboard = {
             return;
         }
 
-        const days = parseInt(document.getElementById('time-range').value);
-        const step = document.getElementById('step-select').value;
+        if (!this.state.currentDataSource) {
+            Helpers.showToast('请选择数据源', 'error');
+            return;
+        }
 
-        const { start, end } = Helpers.getDateRange(days);
+        // Get period and step from dropdowns
+        const days = parseInt(document.getElementById('period-select').value) || 1;
+        const step = document.getElementById('step-select').value || '1m';
+
+        // Get selected endpoint
+        const endpointSelect = document.getElementById('endpoint-select');
+        const endpoint = endpointSelect && !endpointSelect.disabled ? endpointSelect.value : null;
+
+        // Use data's max_time as reference point for query time range
+        const { start, end } = this.getQueryTimeRange(days);
 
         Helpers.showLoading(true, '正在查询数据...');
 
@@ -199,7 +323,7 @@ const Dashboard = {
                 start: start.toISOString(),
                 end: end.toISOString(),
                 step,
-            });
+            }, endpoint);
 
             if (result.success && result.data && result.data.length > 0) {
                 const metricData = result.data[0];

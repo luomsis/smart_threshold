@@ -113,19 +113,98 @@ def _get_datasource_instance(ds_id: str):
 @router.get("", response_model=List[DataSourceConfigResponse])
 async def list_datasources():
     """List all data sources."""
-    # Initialize mock datasource if empty
-    if not _datasources:
-        mock_id = str(uuid.uuid4())
-        _datasources[mock_id] = DataSourceConfigResponse(
-            id=mock_id,
-            name="Mock 数据源",
-            source_type=DataSourceType.MOCK,
-            url="mock://localhost",
-            enabled=True,
-        )
-        # 持久化到文件
-        _save_datasources(_datasources)
     return list(_datasources.values())
+
+
+@router.get("/default", response_model=DataSourceConfigResponse)
+async def get_default_datasource():
+    """Get the default data source.
+
+    Returns the first enabled datasource.
+    If only one datasource exists, it is the default.
+    """
+    if not _datasources:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No data source found"
+        )
+
+    # If only one datasource, it's the default
+    if len(_datasources) == 1:
+        return list(_datasources.values())[0]
+
+    # Find first enabled datasource
+    for ds in _datasources.values():
+        if ds.enabled:
+            return ds
+
+    # If no enabled, return first one
+    return list(_datasources.values())[0]
+
+
+@router.get("/{ds_id}/endpoints", response_model=LabelValues)
+async def list_endpoints(ds_id: str):
+    """List all endpoints for a data source.
+
+    Endpoint is a special label stored as an independent column in TimescaleDB,
+    not in the labels JSON field. This method uses the dedicated get_endpoints()
+    method for cleaner separation.
+    """
+    ds, _ = _get_datasource_instance(ds_id)
+    try:
+        values = ds.get_endpoints()
+        return LabelValues(label="endpoint", values=values)
+    except Exception:
+        # Return empty if endpoint doesn't exist
+        return LabelValues(label="endpoint", values=[])
+
+
+@router.get("/{ds_id}/time-range")
+async def get_time_range(ds_id: str, endpoint: Optional[str] = None):
+    """Get the time range of available data.
+
+    Returns the earliest and latest timestamps in the data source.
+    This is useful for setting default query time ranges based on actual data.
+    """
+    ds, _ = _get_datasource_instance(ds_id)
+    try:
+        result = ds.get_time_range(endpoint)
+        return {
+            "min_time": result["min_time"].isoformat() if result["min_time"] else None,
+            "max_time": result["max_time"].isoformat() if result["max_time"] else None
+        }
+    except Exception as e:
+        return {"min_time": None, "max_time": None}
+
+
+@router.get("/{ds_id}/endpoints/{endpoint}/metrics", response_model=List[MetricMetadata])
+async def list_endpoint_metrics(ds_id: str, endpoint: str):
+    """List available metrics for a specific endpoint."""
+    ds, _ = _get_datasource_instance(ds_id)
+    metrics = ds.list_metrics()
+    # Filter metrics that have the endpoint label with the specified value
+    filtered_metrics = []
+    for m in metrics:
+        # Check if metric has endpoint label
+        if "endpoint" in m.labels:
+            filtered_metrics.append(MetricMetadata(
+                name=m.name,
+                type=m.type,
+                help=m.help,
+                labels=m.labels,
+            ))
+    # If no endpoint filtering needed, return all metrics
+    if not filtered_metrics and metrics:
+        return [
+            MetricMetadata(
+                name=m.name,
+                type=m.type,
+                help=m.help,
+                labels=m.labels,
+            )
+            for m in metrics
+        ]
+    return filtered_metrics
 
 
 @router.post("", response_model=DataSourceConfigResponse, status_code=status.HTTP_201_CREATED)
@@ -236,7 +315,12 @@ async def query_data(ds_id: str, request: QueryRequest):
         step=request.time_range.step,
     )
 
-    result = ds.query_range(request.query, time_range)
+    # 传递 endpoint 参数给数据源
+    result = ds.query_range(
+        request.query,
+        time_range,
+        endpoint=request.endpoint
+    )
 
     if not result.success:
         return QueryResult(

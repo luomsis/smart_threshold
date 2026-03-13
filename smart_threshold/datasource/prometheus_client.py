@@ -179,6 +179,32 @@ class PrometheusDataSource:
 
         return LabelValues(label=label_name, values=values)
 
+    def get_endpoints(self) -> List[str]:
+        """
+        获取所有 endpoint 列表
+
+        Returns:
+            endpoint 列表
+        """
+        # Prometheus 中 endpoint 作为一个普通标签存储
+        result = self.get_label_values("endpoint")
+        return result.values
+
+    def get_time_range(self, endpoint: Optional[str] = None) -> Dict[str, Optional[datetime]]:
+        """
+        获取数据的时间范围
+
+        Prometheus 不直接支持此功能，返回 None 表示不可用。
+        对于 Prometheus，建议使用查询时间范围。
+
+        Args:
+            endpoint: 可选的端点过滤（Prometheus 中忽略）
+
+        Returns:
+            包含 min_time 和 max_time 的字典（均为 None）
+        """
+        return {"min_time": None, "max_time": None}
+
     def query_instant(
         self,
         query: str,
@@ -488,6 +514,29 @@ class MockPrometheusDataSource(PrometheusDataSource):
             label=label_name,
             values=common_values.get(label_name, ["value1", "value2"])
         )
+
+    def get_endpoints(self) -> List[str]:
+        """获取模拟 endpoint 列表"""
+        return ["/api/v1/query", "/metrics", "/health"]
+
+    def get_time_range(self, endpoint: Optional[str] = None) -> Dict[str, Optional[datetime]]:
+        """
+        获取模拟数据的时间范围
+
+        返回最近的模拟数据时间范围。
+
+        Args:
+            endpoint: 可选的端点过滤（模拟中忽略）
+
+        Returns:
+            包含 min_time 和 max_time 的字典
+        """
+        # Mock 数据源返回当前时间作为最新时间
+        now = datetime.now()
+        return {
+            "min_time": now - timedelta(days=7),  # 模拟7天数据
+            "max_time": now
+        }
 
     def query_range(
         self,

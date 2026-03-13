@@ -54,10 +54,25 @@ const API = {
     },
 
     /**
+     * Get default data source
+     */
+    async getDefaultDataSource() {
+        return this.request('GET', '/datasources/default');
+    },
+
+    /**
      * Get data source by ID
      */
     async getDataSource(id) {
         return this.request('GET', `/datasources/${id}`);
+    },
+
+    /**
+     * Get data time range
+     */
+    async getTimeRange(dataSourceId, endpoint = null) {
+        const params = endpoint ? `?endpoint=${encodeURIComponent(endpoint)}` : '';
+        return this.request('GET', `/datasources/${dataSourceId}/time-range${params}`);
     },
 
     /**
@@ -79,6 +94,20 @@ const API = {
      */
     async deleteDataSource(id) {
         return this.request('DELETE', `/datasources/${id}`);
+    },
+
+    /**
+     * List endpoints (endpoint label values) from data source
+     */
+    async listEndpoints(dataSourceId) {
+        return this.request('GET', `/datasources/${dataSourceId}/endpoints`);
+    },
+
+    /**
+     * List metrics for a specific endpoint
+     */
+    async listEndpointMetrics(dataSourceId, endpoint) {
+        return this.request('GET', `/datasources/${dataSourceId}/endpoints/${encodeURIComponent(endpoint)}/metrics`);
     },
 
     /**
@@ -105,13 +134,15 @@ const API = {
     /**
      * Query data
      */
-    async queryData(dataSourceId, query, timeRange) {
-        return this.request('POST', `/datasources/${dataSourceId}/query`, {
-            body: {
-                query,
-                time_range: timeRange,
-            },
-        });
+    async queryData(dataSourceId, query, timeRange, endpoint = null) {
+        const body = {
+            query,
+            time_range: timeRange,
+        };
+        if (endpoint) {
+            body.endpoint = endpoint;
+        }
+        return this.request('POST', `/datasources/${dataSourceId}/query`, { body });
     },
 
     // ==================== Models ====================
