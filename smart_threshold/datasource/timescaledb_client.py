@@ -322,13 +322,21 @@ class TimescaleDBDataSource:
         """
         start_time = time.time()
 
-        # 处理时区：转换为东八区 tz-naive
+        # 处理时区：统一转换为 UTC 进行查询
+        # 数据库存储的是 UTC 时间，所以查询时需要用 UTC
         start_ts = pd.Timestamp(time_range.start)
         end_ts = pd.Timestamp(time_range.end)
+
+        # 如果有时区信息，转换为 UTC
         if start_ts.tz is not None:
-            start_ts = start_ts.tz_convert(TZ_SHANGHAI).tz_localize(None)
+            start_ts = start_ts.tz_convert('UTC')
         if end_ts.tz is not None:
-            end_ts = end_ts.tz_convert(TZ_SHANGHAI).tz_localize(None)
+            end_ts = end_ts.tz_convert('UTC')
+
+        # 移除时区信息以便与数据库中的 timestamptz 比较
+        # PostgreSQL 会自动处理时区转换
+        start_ts = start_ts.tz_localize(None) if start_ts.tz is not None else start_ts
+        end_ts = end_ts.tz_localize(None) if end_ts.tz is not None else end_ts
 
         # 构建 SQL 查询
         sql = """

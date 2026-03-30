@@ -289,3 +289,187 @@ class ErrorResponse(BaseModel):
     """错误响应"""
     detail: str = Field(..., description="错误详情")
     code: Optional[str] = Field(None, description="错误代码")
+
+
+# ==================== Pipeline Schemas (New) ====================
+
+class JobStatus(str, Enum):
+    """Job status enum"""
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class ExcludePeriod(BaseModel):
+    """Exclude period for training"""
+    start: datetime = Field(..., description="Start time")
+    end: datetime = Field(..., description="End time")
+
+
+class PipelineCreate(BaseModel):
+    """Create pipeline request"""
+    name: str = Field(..., description="Pipeline name")
+    description: str = Field("", description="Description")
+    metric_id: str = Field(..., description="Metric identifier")
+    datasource_id: str = Field(..., description="Data source ID")
+    endpoint: Optional[str] = Field(None, description="Endpoint filter")
+    labels: Dict[str, str] = Field(default_factory=dict, description="Label filters")
+
+    train_start: datetime = Field(..., description="Training start time")
+    train_end: datetime = Field(..., description="Training end time")
+    step: str = Field("1m", description="Query step")
+
+    algorithm: str = Field(..., description="Algorithm ID")
+    algorithm_params: Dict[str, Any] = Field(default_factory=dict, description="Algorithm parameters")
+
+    exclude_periods: List[ExcludePeriod] = Field(default_factory=list, description="Periods to exclude")
+    enabled: bool = Field(True, description="Enable pipeline")
+    schedule_type: str = Field("manual", description="Schedule type: manual or scheduled")
+    cron_expr: Optional[str] = Field(None, description="Cron expression for scheduled pipelines")
+
+
+class PipelineUpdate(BaseModel):
+    """Update pipeline request"""
+    name: Optional[str] = None
+    description: Optional[str] = None
+    metric_id: Optional[str] = None
+    datasource_id: Optional[str] = None
+    endpoint: Optional[str] = None
+    labels: Optional[Dict[str, str]] = None
+    train_start: Optional[datetime] = None
+    train_end: Optional[datetime] = None
+    step: Optional[str] = None
+    algorithm: Optional[str] = None
+    algorithm_params: Optional[Dict[str, Any]] = None
+    exclude_periods: Optional[List[ExcludePeriod]] = None
+    enabled: Optional[bool] = None
+    schedule_type: Optional[str] = None
+    cron_expr: Optional[str] = None
+
+
+class PipelineResponse(BaseModel):
+    """Pipeline response"""
+    id: str = Field(..., description="Pipeline ID")
+    name: str
+    description: str
+    metric_id: str
+    datasource_id: str
+    endpoint: Optional[str]
+    labels: Dict[str, str]
+    train_start: datetime
+    train_end: datetime
+    step: str
+    algorithm: str
+    algorithm_params: Dict[str, Any]
+    exclude_periods: List[Dict[str, Any]]
+    enabled: bool
+    schedule_type: str
+    cron_expr: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class JobResponse(BaseModel):
+    """Job response"""
+    id: str = Field(..., description="Job ID")
+    pipeline_id: str
+    status: str
+    progress: int = Field(description="Progress 0-100")
+    current_step: Optional[str]
+
+    # Metrics
+    rmse: Optional[float]
+    mae: Optional[float]
+    mape: Optional[float]
+    coverage: Optional[float]
+    false_alerts: Optional[int]
+
+    # Results
+    preview_data: Optional[Dict[str, Any]]
+    upper_bounds: Optional[List[float]]
+    lower_bounds: Optional[List[float]]
+
+    # Error info
+    error_message: Optional[str]
+
+    # Timing
+    started_at: Optional[datetime]
+    finished_at: Optional[datetime]
+    created_at: datetime
+    duration_seconds: Optional[float] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PipelineRunRequest(BaseModel):
+    """Request to run a pipeline"""
+    pipeline_id: str = Field(..., description="Pipeline ID to run")
+    override_params: Optional[Dict[str, Any]] = Field(None, description="Override algorithm parameters")
+
+
+class PipelineRunResponse(BaseModel):
+    """Response after triggering pipeline run"""
+    job_id: str = Field(..., description="Created job ID")
+    pipeline_id: str
+    status: str
+    message: str = "Pipeline started"
+
+
+# ==================== Algorithm Schemas (New) ====================
+
+class AlgorithmInfo(BaseModel):
+    """Algorithm information"""
+    id: str = Field(..., description="Algorithm ID")
+    name: str = Field(..., description="Display name")
+    description: str = Field(..., description="Algorithm description")
+    param_schema: Dict[str, Any] = Field(..., description="JSON Schema for parameters")
+
+
+class AlgorithmListResponse(BaseModel):
+    """List of available algorithms"""
+    algorithms: List[AlgorithmInfo]
+
+
+# ==================== Threshold Schemas (New) ====================
+
+class ThresholdPublishRequest(BaseModel):
+    """Request to publish threshold to Redis"""
+    metric_id: str = Field(..., description="Metric identifier")
+    job_id: str = Field(..., description="Job ID with threshold results")
+    ttl: Optional[int] = Field(None, description="Cache TTL in seconds")
+
+
+class ThresholdPublishResponse(BaseModel):
+    """Response after publishing threshold"""
+    success: bool
+    metric_id: str
+    message: str = "Threshold published"
+
+
+class ThresholdGetResponse(BaseModel):
+    """Response for getting threshold"""
+    metric_id: str
+    upper: List[float]
+    lower: List[float]
+    cached_at: Optional[str] = None
+
+
+# ==================== Job Log Schema ====================
+
+class JobLogEntry(BaseModel):
+    """Single log entry for a job"""
+    timestamp: str
+    level: str
+    message: str
+
+
+class JobLogsResponse(BaseModel):
+    """Response for job logs"""
+    job_id: str
+    logs: List[JobLogEntry]

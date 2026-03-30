@@ -235,6 +235,164 @@ const API = {
     async healthCheck() {
         return this.request('GET', '/health');
     },
+
+    // ==================== Algorithms ====================
+
+    /**
+     * List all available algorithms with parameter schemas
+     */
+    async listAlgorithms() {
+        return this.request('GET', '/algorithms');
+    },
+
+    /**
+     * Get algorithm by ID
+     */
+    async getAlgorithm(algorithmId) {
+        return this.request('GET', `/algorithms/${algorithmId}`);
+    },
+
+    // ==================== Pipelines ====================
+
+    /**
+     * Create a new pipeline
+     */
+    async createPipeline(data) {
+        return this.request('POST', '/pipelines', { body: data });
+    },
+
+    /**
+     * List all pipelines
+     */
+    async listPipelines(filters = {}) {
+        const params = new URLSearchParams();
+        if (filters.enabled !== undefined) params.append('enabled', filters.enabled);
+        if (filters.algorithm) params.append('algorithm', filters.algorithm);
+        const query = params.toString() ? `?${params.toString()}` : '';
+        return this.request('GET', `/pipelines${query}`);
+    },
+
+    /**
+     * Get pipeline by ID
+     */
+    async getPipeline(pipelineId) {
+        return this.request('GET', `/pipelines/${pipelineId}`);
+    },
+
+    /**
+     * Update pipeline
+     */
+    async updatePipeline(pipelineId, data) {
+        return this.request('PUT', `/pipelines/${pipelineId}`, { body: data });
+    },
+
+    /**
+     * Delete pipeline
+     */
+    async deletePipeline(pipelineId) {
+        return this.request('DELETE', `/pipelines/${pipelineId}`);
+    },
+
+    /**
+     * Run a pipeline (trigger training job)
+     */
+    async runPipeline(pipelineId, overrideParams = null) {
+        const body = { pipeline_id: pipelineId };
+        if (overrideParams) {
+            body.override_params = overrideParams;
+        }
+        return this.request('POST', '/pipelines/run', { body });
+    },
+
+    /**
+     * Get job status and results
+     */
+    async getJob(jobId) {
+        return this.request('GET', `/pipelines/jobs/${jobId}`);
+    },
+
+    /**
+     * List jobs for a pipeline
+     */
+    async listPipelineJobs(pipelineId, status = null, limit = 10) {
+        const params = new URLSearchParams();
+        if (status) params.append('status', status);
+        params.append('limit', limit);
+        return this.request('GET', `/pipelines/${pipelineId}/jobs?${params.toString()}`);
+    },
+
+    /**
+     * List all running jobs (pending or running status)
+     */
+    async listRunningJobs() {
+        return this.request('GET', '/pipelines/jobs/running');
+    },
+
+    /**
+     * List all jobs with filters
+     */
+    async listAllJobs(filters = {}) {
+        const params = new URLSearchParams();
+        if (filters.status) params.append('status', filters.status);
+        if (filters.pipeline_id) params.append('pipeline_id', filters.pipeline_id);
+        if (filters.limit) params.append('limit', filters.limit);
+        if (filters.offset) params.append('offset', filters.offset);
+        const query = params.toString() ? `?${params.toString()}` : '';
+        return this.request('GET', `/pipelines/jobs/all${query}`);
+    },
+
+    /**
+     * Cancel a running job
+     */
+    async cancelJob(jobId) {
+        return this.request('POST', `/pipelines/jobs/${jobId}/cancel`);
+    },
+
+    /**
+     * Retry a failed job
+     */
+    async retryJob(jobId) {
+        return this.request('POST', `/pipelines/jobs/${jobId}/retry`);
+    },
+
+    /**
+     * Get job execution logs
+     */
+    async getJobLogs(jobId, limit = 100) {
+        return this.request('GET', `/pipelines/jobs/${jobId}/logs?limit=${limit}`);
+    },
+
+    // ==================== Thresholds ====================
+
+    /**
+     * Publish threshold to Redis
+     */
+    async publishThreshold(metricId, jobId, ttl = null) {
+        const body = { metric_id: metricId, job_id: jobId };
+        if (ttl) body.ttl = ttl;
+        return this.request('POST', '/thresholds/publish', { body });
+    },
+
+    /**
+     * Get cached threshold for a metric
+     */
+    async getThreshold(metricId) {
+        return this.request('GET', `/thresholds/${metricId}`);
+    },
+
+    /**
+     * Delete cached threshold
+     */
+    async deleteThreshold(metricId) {
+        return this.request('DELETE', `/thresholds/${metricId}`);
+    },
+
+    /**
+     * List all cached thresholds
+     */
+    async listCachedThresholds() {
+        return this.request('GET', '/thresholds');
+    },
 };
 
 // Make API globally available

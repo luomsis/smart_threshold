@@ -110,19 +110,23 @@ def _get_datasource_instance(ds_id: str):
     return create_datasource(config), ds_config
 
 
-@router.get("", response_model=List[DataSourceConfigResponse])
+@router.get(
+    "",
+    response_model=List[DataSourceConfigResponse],
+    summary="获取所有数据源",
+    description="返回系统中配置的所有数据源列表，包括 Prometheus、TimescaleDB、Mock 等类型。",
+)
 async def list_datasources():
-    """List all data sources."""
     return list(_datasources.values())
 
 
-@router.get("/default", response_model=DataSourceConfigResponse)
+@router.get(
+    "/default",
+    response_model=DataSourceConfigResponse,
+    summary="获取默认数据源",
+    description="返回默认启用的数据源。如果只有一个数据源，则返回该数据源；否则返回第一个启用的数据源。",
+)
 async def get_default_datasource():
-    """Get the default data source.
-
-    Returns the first enabled datasource.
-    If only one datasource exists, it is the default.
-    """
     if not _datasources:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -142,14 +146,13 @@ async def get_default_datasource():
     return list(_datasources.values())[0]
 
 
-@router.get("/{ds_id}/endpoints", response_model=LabelValues)
+@router.get(
+    "/{ds_id}/endpoints",
+    response_model=LabelValues,
+    summary="获取数据源的 Endpoint 列表",
+    description="获取指定数据源中所有可用的 Endpoint（独立列存储，非 labels JSON 字段）。适用于 TimescaleDB 等支持 Endpoint 分区的数据源。",
+)
 async def list_endpoints(ds_id: str):
-    """List all endpoints for a data source.
-
-    Endpoint is a special label stored as an independent column in TimescaleDB,
-    not in the labels JSON field. This method uses the dedicated get_endpoints()
-    method for cleaner separation.
-    """
     ds, _ = _get_datasource_instance(ds_id)
     try:
         values = ds.get_endpoints()
@@ -159,13 +162,12 @@ async def list_endpoints(ds_id: str):
         return LabelValues(label="endpoint", values=[])
 
 
-@router.get("/{ds_id}/time-range")
+@router.get(
+    "/{ds_id}/time-range",
+    summary="获取数据时间范围",
+    description="获取数据源中数据的最早和最晚时间戳，用于设置默认查询时间范围。支持按 Endpoint 过滤。",
+)
 async def get_time_range(ds_id: str, endpoint: Optional[str] = None):
-    """Get the time range of available data.
-
-    Returns the earliest and latest timestamps in the data source.
-    This is useful for setting default query time ranges based on actual data.
-    """
     ds, _ = _get_datasource_instance(ds_id)
     try:
         result = ds.get_time_range(endpoint)
@@ -177,9 +179,13 @@ async def get_time_range(ds_id: str, endpoint: Optional[str] = None):
         return {"min_time": None, "max_time": None}
 
 
-@router.get("/{ds_id}/endpoints/{endpoint}/metrics", response_model=List[MetricMetadata])
+@router.get(
+    "/{ds_id}/endpoints/{endpoint}/metrics",
+    response_model=List[MetricMetadata],
+    summary="获取指定 Endpoint 的指标列表",
+    description="获取指定数据源中特定 Endpoint 下可用的所有指标元数据。",
+)
 async def list_endpoint_metrics(ds_id: str, endpoint: str):
-    """List available metrics for a specific endpoint."""
     ds, _ = _get_datasource_instance(ds_id)
     metrics = ds.list_metrics()
     # Filter metrics that have the endpoint label with the specified value
@@ -207,9 +213,14 @@ async def list_endpoint_metrics(ds_id: str, endpoint: str):
     return filtered_metrics
 
 
-@router.post("", response_model=DataSourceConfigResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=DataSourceConfigResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="创建数据源",
+    description="创建一个新的数据源配置。支持 Prometheus、TimescaleDB、Mock 等类型。TimescaleDB 需要额外提供数据库连接参数。",
+)
 async def create_datasource(config: DataSourceConfigCreate):
-    """Create a new data source."""
     ds_id = str(uuid.uuid4())
     ds_response = DataSourceConfigResponse(
         id=ds_id,
@@ -221,9 +232,13 @@ async def create_datasource(config: DataSourceConfigCreate):
     return ds_response
 
 
-@router.get("/{ds_id}", response_model=DataSourceConfigResponse)
+@router.get(
+    "/{ds_id}",
+    response_model=DataSourceConfigResponse,
+    summary="获取数据源详情",
+    description="根据 ID 获取指定数据源的完整配置信息。",
+)
 async def get_datasource(ds_id: str):
-    """Get data source by ID."""
     ds = _datasources.get(ds_id)
     if not ds:
         raise HTTPException(
@@ -233,9 +248,13 @@ async def get_datasource(ds_id: str):
     return ds
 
 
-@router.put("/{ds_id}", response_model=DataSourceConfigResponse)
+@router.put(
+    "/{ds_id}",
+    response_model=DataSourceConfigResponse,
+    summary="更新数据源",
+    description="更新指定数据源的配置。只需提供要更新的字段，未提供的字段保持不变。",
+)
 async def update_datasource(ds_id: str, updates: DataSourceConfigUpdate):
-    """Update data source."""
     if ds_id not in _datasources:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -259,9 +278,13 @@ async def update_datasource(ds_id: str, updates: DataSourceConfigUpdate):
     return updated
 
 
-@router.delete("/{ds_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{ds_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="删除数据源",
+    description="删除指定的数据源配置。删除后无法恢复。",
+)
 async def delete_datasource(ds_id: str):
-    """Delete a data source."""
     if ds_id not in _datasources:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -272,9 +295,13 @@ async def delete_datasource(ds_id: str):
     _save_datasources(_datasources)
 
 
-@router.get("/{ds_id}/metrics", response_model=List[MetricMetadata])
+@router.get(
+    "/{ds_id}/metrics",
+    response_model=List[MetricMetadata],
+    summary="获取数据源指标列表",
+    description="获取指定数据源中所有可用的指标元数据，包括指标名称、类型、帮助信息和标签。",
+)
 async def list_metrics(ds_id: str):
-    """List available metrics from data source."""
     ds, _ = _get_datasource_instance(ds_id)
     metrics = ds.list_metrics()
     return [
@@ -288,24 +315,36 @@ async def list_metrics(ds_id: str):
     ]
 
 
-@router.get("/{ds_id}/labels", response_model=List[str])
+@router.get(
+    "/{ds_id}/labels",
+    response_model=List[str],
+    summary="获取数据源标签名称列表",
+    description="获取指定数据源中所有可用的标签名称。",
+)
 async def list_labels(ds_id: str):
-    """List available label names from data source."""
     ds, _ = _get_datasource_instance(ds_id)
     return ds.list_label_names()
 
 
-@router.get("/{ds_id}/labels/{label_name}", response_model=LabelValues)
+@router.get(
+    "/{ds_id}/labels/{label_name}",
+    response_model=LabelValues,
+    summary="获取标签值列表",
+    description="获取指定数据源中某个标签的所有可用值。",
+)
 async def get_label_values(ds_id: str, label_name: str):
-    """Get values for a specific label."""
     ds, _ = _get_datasource_instance(ds_id)
     result = ds.get_label_values(label_name)
     return LabelValues(label=result.label, values=result.values)
 
 
-@router.post("/{ds_id}/query", response_model=QueryResult)
+@router.post(
+    "/{ds_id}/query",
+    response_model=QueryResult,
+    summary="查询时序数据",
+    description="从指定数据源查询时序数据。支持时间范围、步长和 Endpoint 过滤。返回数据点列表和执行时间。",
+)
 async def query_data(ds_id: str, request: QueryRequest):
-    """Query data from data source."""
     ds, _ = _get_datasource_instance(ds_id)
 
     from smart_threshold.datasource import TimeRange as DsTimeRange

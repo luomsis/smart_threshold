@@ -54,12 +54,16 @@ def _config_to_response(config) -> ModelConfigResponse:
     )
 
 
-@router.get("", response_model=List[ModelConfigResponse])
+@router.get(
+    "",
+    response_model=List[ModelConfigResponse],
+    summary="获取所有模型配置",
+    description="返回系统中所有预测模型配置列表。可按模型类型（prophet/welford/static）和分类（system/custom）筛选。",
+)
 async def list_models(
     model_type: Optional[ModelType] = None,
     category: Optional[TemplateCategory] = None,
 ):
-    """List all model configurations."""
     manager = _get_manager()
     configs = manager.list_configs(
         model_type=model_type and model_type.value,
@@ -68,9 +72,13 @@ async def list_models(
     return [_config_to_response(c) for c in configs]
 
 
-@router.get("/{model_id}", response_model=ModelConfigResponse)
+@router.get(
+    "/{model_id}",
+    response_model=ModelConfigResponse,
+    summary="获取模型配置详情",
+    description="根据 ID 获取指定模型的完整配置信息，包括算法参数和元数据。",
+)
 async def get_model(model_id: str):
-    """Get model configuration by ID."""
     manager = _get_manager()
     config = manager.get_config(model_id)
     if not config:
@@ -81,9 +89,14 @@ async def get_model(model_id: str):
     return _config_to_response(config)
 
 
-@router.post("", response_model=ModelConfigResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=ModelConfigResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="创建模型配置",
+    description="创建新的预测模型配置。支持 Prophet、Welford、Static 三种算法类型。创建的模型分类为 'custom'。",
+)
 async def create_model(config: ModelConfigCreate):
-    """Create a new model configuration."""
     from smart_threshold.config import ModelConfig as CoreModelConfig
 
     manager = _get_manager()
@@ -127,9 +140,13 @@ async def create_model(config: ModelConfigCreate):
     return _config_to_response(core_config)
 
 
-@router.put("/{model_id}", response_model=ModelConfigResponse)
+@router.put(
+    "/{model_id}",
+    response_model=ModelConfigResponse,
+    summary="更新模型配置",
+    description="更新指定模型的配置参数。只需提供要更新的字段。",
+)
 async def update_model(model_id: str, updates: ModelConfigUpdate):
-    """Update model configuration."""
     manager = _get_manager()
     config = manager.get_config(model_id)
 
@@ -152,9 +169,13 @@ async def update_model(model_id: str, updates: ModelConfigUpdate):
     return _config_to_response(updated_config)
 
 
-@router.delete("/{model_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{model_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="删除模型配置",
+    description="删除指定的模型配置。系统内置模型（system 分类）无法删除。",
+)
 async def delete_model(model_id: str):
-    """Delete model configuration."""
     manager = _get_manager()
 
     if not manager.delete_config(model_id):

@@ -41,6 +41,10 @@ const Sidebar = {
             Models.refresh();
         } else if (page === 'datasources') {
             DataSources.refresh();
+        } else if (page === 'pipelines') {
+            Pipelines.refresh();
+        } else if (page === 'jobs') {
+            Jobs.refresh();
         }
     },
 
@@ -65,6 +69,46 @@ const Sidebar = {
         });
 
         this.currentPage = 'model-edit';
+    },
+
+    /**
+     * Navigate to pipeline edit page
+     */
+    navigateToPipelineEdit() {
+        document.querySelectorAll('.page').forEach(p => {
+            p.classList.remove('active');
+        });
+
+        const editPage = document.getElementById('page-pipeline-edit');
+        if (editPage) {
+            editPage.classList.add('active');
+        }
+
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.classList.remove('active');
+        });
+
+        this.currentPage = 'pipeline-edit';
+    },
+
+    /**
+     * Navigate to job status page
+     */
+    navigateToJobStatus() {
+        document.querySelectorAll('.page').forEach(p => {
+            p.classList.remove('active');
+        });
+
+        const statusPage = document.getElementById('page-job-status');
+        if (statusPage) {
+            statusPage.classList.add('active');
+        }
+
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.classList.remove('active');
+        });
+
+        this.currentPage = 'job-status';
     },
 
     updateCurrentDataSource(name) {

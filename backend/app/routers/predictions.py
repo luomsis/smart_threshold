@@ -57,9 +57,13 @@ def create_predictor(model_type: ModelType, params: dict):
     raise ValueError(f"Unknown model type: {model_type}")
 
 
-@router.post("/analyze", response_model=FeatureAnalysisResponse)
+@router.post(
+    "/analyze",
+    response_model=FeatureAnalysisResponse,
+    summary="分析时序数据特征",
+    description="分析时序数据的统计特征，包括季节性（ACF 检验）、稀疏性、平稳性（ADF 检验）。根据特征自动推荐最合适的预测算法。",
+)
 async def analyze_features(request: FeatureAnalysisRequest):
-    """分析时序数据特征"""
     if len(request.data) < 100:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -89,9 +93,13 @@ async def analyze_features(request: FeatureAnalysisRequest):
     )
 
 
-@router.post("/predict", response_model=PredictionResult)
+@router.post(
+    "/predict",
+    response_model=PredictionResult,
+    summary="运行预测",
+    description="使用指定模型对时序数据进行预测。返回预测值及置信区间上下限。数据长度需大于 100 点。",
+)
 async def predict(request: PredictionRequest):
-    """运行预测"""
     from smart_threshold.config import get_model_config_manager
 
     manager = get_model_config_manager()
@@ -126,9 +134,13 @@ async def predict(request: PredictionRequest):
     )
 
 
-@router.post("/compare", response_model=ModelComparisonResponse)
+@router.post(
+    "/compare",
+    response_model=ModelComparisonResponse,
+    summary="多模型对比",
+    description="对比多个模型在同一数据集上的预测效果。返回每个模型的 MAE、MAPE、覆盖率等评估指标及预测结果。",
+)
 async def compare_models(request: ModelComparisonRequest):
-    """对比多个模型"""
     from smart_threshold.config import get_model_config_manager
 
     if not request.model_ids:

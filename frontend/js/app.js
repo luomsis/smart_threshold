@@ -17,6 +17,8 @@ const App = {
         await Dashboard.init();
         await Models.init();
         await DataSources.init();
+        await Pipelines.init();
+        await Jobs.init();
 
         // Bind modal close
         document.getElementById('modal-close').addEventListener('click', () => {
@@ -63,6 +65,10 @@ const App = {
             Models.refresh();
         } else if (page === 'datasources') {
             DataSources.refresh();
+        } else if (page === 'pipelines') {
+            Pipelines.refresh();
+        } else if (page === 'jobs') {
+            Jobs.refresh();
         }
     },
 

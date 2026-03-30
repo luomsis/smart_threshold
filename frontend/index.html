@@ -24,6 +24,14 @@
                         <span class="nav-icon">📊</span>
                         <span class="nav-text">仪表盘</span>
                     </li>
+                    <li class="nav-item" data-page="pipelines">
+                        <span class="nav-icon">🔧</span>
+                        <span class="nav-text">Pipeline</span>
+                    </li>
+                    <li class="nav-item" data-page="jobs">
+                        <span class="nav-icon">📋</span>
+                        <span class="nav-text">任务列表</span>
+                    </li>
                     <li class="nav-item" data-page="models">
                         <span class="nav-icon">🤖</span>
                         <span class="nav-text">模型管理</span>
@@ -272,6 +280,147 @@
                 </div>
                 <div class="datasources-list" id="datasources-list"></div>
             </div>
+
+            <!-- Pipelines Page -->
+            <div id="page-pipelines" class="page">
+                <div class="page-header">
+                    <h2 class="page-title">Pipeline 管理</h2>
+                    <div class="page-actions">
+                        <button class="btn btn-primary" id="btn-add-pipeline">
+                            <span>+</span> 创建 Pipeline
+                        </button>
+                    </div>
+                </div>
+                <div class="pipelines-grid" id="pipelines-grid"></div>
+            </div>
+
+            <!-- Jobs Page -->
+            <div id="page-jobs" class="page">
+                <div class="page-header">
+                    <h2 class="page-title">任务列表</h2>
+                    <div class="page-actions">
+                        <select id="jobs-status-filter" class="form-control" style="width: 120px;">
+                            <option value="">全部状态</option>
+                            <option value="pending">等待中</option>
+                            <option value="running">运行中</option>
+                            <option value="success">成功</option>
+                            <option value="failed">失败</option>
+                            <option value="cancelled">已取消</option>
+                        </select>
+                        <select id="jobs-pipeline-filter" class="form-control" style="width: 180px;">
+                            <option value="">全部 Pipeline</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="jobs-table-container">
+                    <table class="jobs-table" id="jobs-table">
+                        <thead>
+                            <tr>
+                                <th>任务 ID</th>
+                                <th>Pipeline</th>
+                                <th>状态</th>
+                                <th>进度</th>
+                                <th>算法</th>
+                                <th>开始时间</th>
+                                <th>耗时</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="jobs-table-body">
+                            <!-- Jobs will be rendered here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="jobs-empty" id="jobs-empty" style="display: none;">
+                    <span class="empty-icon">📋</span>
+                    <p>暂无任务记录</p>
+                </div>
+            </div>
+
+            <!-- Pipeline Edit Page -->
+            <div id="page-pipeline-edit" class="page">
+                <div class="page-header">
+                    <h2 class="page-title" id="edit-pipeline-title">创建 Pipeline</h2>
+                    <div class="page-actions">
+                        <button class="btn btn-secondary" id="btn-back-pipelines">
+                            <span>←</span> 返回
+                        </button>
+                        <button class="btn btn-primary" id="btn-save-pipeline">
+                            <span>💾</span> 保存
+                        </button>
+                    </div>
+                </div>
+                <div class="pipeline-edit-form">
+                    <div class="form-section">
+                        <h4>基本信息</h4>
+                        <div class="form-row">
+                            <div class="form-group" style="flex: 2;">
+                                <label>Pipeline 名称 *</label>
+                                <input type="text" id="edit-pipeline-name" class="form-control" placeholder="输入 Pipeline 名称">
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label>算法 *</label>
+                                <select id="edit-pipeline-algorithm" class="form-control">
+                                    <option value="">选择算法...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>描述</label>
+                            <textarea id="edit-pipeline-desc" class="form-control" rows="2" placeholder="输入描述"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h4>数据配置</h4>
+                        <div class="form-row">
+                            <div class="form-group" style="flex: 1;">
+                                <label>数据源 *</label>
+                                <select id="edit-pipeline-datasource" class="form-control">
+                                    <option value="">选择数据源...</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label>指标 ID *</label>
+                                <input type="text" id="edit-pipeline-metric" class="form-control" placeholder="如: cpu_usage, qps">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h4>训练时间范围</h4>
+                        <div class="form-row">
+                            <div class="form-group" style="flex: 1;">
+                                <label>开始时间 *</label>
+                                <input type="datetime-local" id="edit-pipeline-train-start" class="form-control">
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label>结束时间 *</label>
+                                <input type="datetime-local" id="edit-pipeline-train-end" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="edit-pipeline-params" class="form-section"></div>
+                </div>
+            </div>
+
+            <!-- Job Status Page -->
+            <div id="page-job-status" class="page">
+                <div class="page-header">
+                    <h2 class="page-title">任务状态</h2>
+                    <div class="page-actions">
+                        <button class="btn btn-secondary" onclick="Sidebar.navigateTo('pipelines')">
+                            <span>←</span> 返回列表
+                        </button>
+                    </div>
+                </div>
+                <div class="job-status-panel">
+                    <div id="job-status-content" class="job-status-content">
+                        <!-- Job status will be rendered here -->
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -306,6 +455,8 @@
     <script src="js/components/dashboard.js"></script>
     <script src="js/components/models.js"></script>
     <script src="js/components/datasources.js"></script>
+    <script src="js/components/pipelines.js"></script>
+    <script src="js/components/jobs.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

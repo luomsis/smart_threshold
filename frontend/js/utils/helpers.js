@@ -94,9 +94,17 @@ const Helpers = {
      */
     showLoading(show = true, text = '加载中...') {
         const overlay = document.getElementById('loading-overlay');
+        if (!overlay) return;
         const loadingText = overlay.querySelector('.loading-text');
-        loadingText.textContent = text;
+        if (loadingText) loadingText.textContent = text;
         overlay.classList.toggle('active', show);
+    },
+
+    /**
+     * Hide loading overlay
+     */
+    hideLoading() {
+        this.showLoading(false);
     },
 
     /**
