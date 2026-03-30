@@ -103,13 +103,7 @@ const API = {
         return this.request('GET', `/datasources/${dataSourceId}/endpoints`);
     },
 
-    /**
-     * List metrics for a specific endpoint
-     */
-    async listEndpointMetrics(dataSourceId, endpoint) {
-        return this.request('GET', `/datasources/${dataSourceId}/endpoints/${encodeURIComponent(endpoint)}/metrics`);
-    },
-
+    
     /**
      * List metrics from data source
      */

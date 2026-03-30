@@ -395,78 +395,6 @@
     opacity: 0.7;
 }
 
-/* Checkbox 样式 */
-.param-editor-item.checkbox-item {
-    display: flex;
-    align-items: center;
-    padding: 8px 0;
-}
-
-.param-editor-item.checkbox-item label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    cursor: pointer;
-    margin: 0;
-}
-
-.param-editor-item.checkbox-item input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-}
-
-/* Help Icon */
-.param-label-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.help-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: var(--primary-color);
-    color: white;
-    font-size: 12px;
-    font-weight: bold;
-    cursor: help;
-    flex-shrink: 0;
-    transition: background 0.2s;
-}
-
-.help-icon:hover {
-    background: var(--primary-color-dark, #3b82f6);
-}
-
-/* Global Tooltip */
-.help-tooltip {
-    position: fixed;
-    top: 0;
-    left: 0;
-    background: #333;
-    color: white;
-    padding: 10px 14px;
-    border-radius: 6px;
-    font-size: 12px;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    min-width: 200px;
-    max-width: 400px;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.2s;
-    z-index: 10000;
-    pointer-events: none;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-/* Comparison Chart Controls */
 .chart-controls {
     display: flex;
     gap: 12px;
@@ -1087,15 +1015,6 @@ input:checked + .toggle-slider:before {
     gap: 4px;
 }
 
-.btn-xs {
-    padding: 4px 10px;
-    font-size: 11px;
-    border-radius: 4px;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
 .btn-view {
     background: rgba(91, 192, 222, 0.2);
     color: #5bc0de;
@@ -1243,4 +1162,128 @@ input:checked + .toggle-slider:before {
 
 .modal-footer .btn-warning:hover {
     background: rgba(240, 173, 78, 1);
+}
+
+/* ==================== Pipeline Detail Styles ==================== */
+
+.pipeline-detail-section {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.pipeline-detail-section h4 {
+    margin: 0 0 16px 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.pipeline-detail-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.pipeline-detail-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.pipeline-detail-row:last-child {
+    margin-bottom: 0;
+}
+
+.pipeline-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pipeline-detail-item.full-width {
+    grid-column: 1 / -1;
+}
+
+.detail-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.detail-value {
+    font-size: 13px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.detail-value .algo-badge {
+    background: var(--primary-color-alpha);
+    color: var(--primary-color);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+.pipeline-desc {
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 6px;
+}
+
+/* Responsive adjustments for pipeline detail */
+@media (max-width: 640px) {
+    .pipeline-detail-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ==================== Job Metrics Panel Styles ==================== */
+
+.job-metrics-panel {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    padding: 20px;
+    margin-top: 16px;
+}
+
+.job-metrics-panel h4 {
+    margin: 0 0 16px 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.job-chart-panel {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    padding: 20px;
+    margin-top: 16px;
+}
+
+.job-chart-panel h4 {
+    margin: 0 0 16px 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.job-actions {
+    margin-top: 16px;
+    margin-bottom: 0;
 }
