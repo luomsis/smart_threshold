@@ -353,7 +353,6 @@ const DataQuery = {
                 };
 
                 this.onQuerySuccess();
-                Helpers.showToast(`查询成功！获取到${metricData.data.length}个数据点`, 'success');
             } else {
                 Helpers.showToast('查询失败: ' + (result.error || '无数据'), 'error');
             }
