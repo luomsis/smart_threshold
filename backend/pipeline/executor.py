@@ -221,6 +221,8 @@ class PipelineExecutor:
         self._cleaned_data, cleaning_stats = clean_data(
             data=self._raw_data,
             exclude_periods=self.pipeline.exclude_periods,
+            outlier_detection=self.pipeline.outlier_detection,
+            smoothing=self.pipeline.smoothing,
         )
 
         # Store cleaning stats in job preview
@@ -236,12 +238,34 @@ class PipelineExecutor:
         """Step 3: Train model."""
         job.current_step = "training"
         job.progress = 50
-        self._log(f"Training model with algorithm: {self.pipeline.algorithm}")
+
+        # Determine algorithm and params from model_id or direct fields
+        algorithm = self.pipeline.algorithm
+        algorithm_params = self.pipeline.algorithm_params or {}
+
+        if self.pipeline.model_id:
+            self._log(f"Using model config: {self.pipeline.model_id}")
+            # Import locally to avoid circular import
+            from smart_threshold.config.model_config import get_model_config_manager
+            manager = get_model_config_manager()
+            model_config = manager.get_config(self.pipeline.model_id)
+            if model_config:
+                algorithm = model_config.model_type.value
+                # Start with model's default params
+                algorithm_params = model_config.get_params()
+                # Apply override_params if present
+                if self.pipeline.override_params:
+                    algorithm_params.update(self.pipeline.override_params)
+                    self._log(f"Applied override params: {self.pipeline.override_params}")
+            else:
+                self._log(f"WARNING: Model config not found: {self.pipeline.model_id}, falling back to algorithm field")
+
+        self._log(f"Training model with algorithm: {algorithm}")
 
         self._model, self._prediction, error = train_model(
             data=self._cleaned_data,
-            algorithm=self.pipeline.algorithm,
-            algorithm_params=self.pipeline.algorithm_params,
+            algorithm=algorithm,
+            algorithm_params=algorithm_params,
         )
 
         if error:
@@ -339,9 +363,14 @@ def run_pipeline(
         if not job:
             raise ValueError(f"Job not found: {job_id}")
 
-        # Load datasource configs
-        # TODO: Load from config file or database
+        # Load datasource configs from datasources router
+        from backend.app.routers.datasources import _load_datasources
+        datasource_configs_raw = _load_datasources()
+
+        # Convert DataSourceConfigResponse to dict format
         datasource_configs = {}
+        for ds_id, ds_config in datasource_configs_raw.items():
+            datasource_configs[ds_id] = ds_config.model_dump()
 
         # Execute
         executor = PipelineExecutor(

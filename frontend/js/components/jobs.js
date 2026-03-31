@@ -183,15 +183,12 @@ const Jobs = {
                     <span class="job-status-badge" style="background-color: ${statusColor}">${statusText}</span>
                 </td>
                 <td class="job-progress-col">
-                    ${job.status === 'running' || job.status === 'pending'
-                        ? `<div class="job-progress-mini">
-                            <div class="progress-bar-mini">
-                                <div class="progress-fill-mini" style="width: ${job.progress}%; background-color: ${statusColor}"></div>
-                            </div>
-                            <span class="progress-text-mini">${job.progress}%</span>
-                           </div>`
-                        : '-'
-                    }
+                    <div class="job-progress-mini">
+                        <div class="progress-bar-mini">
+                            <div class="progress-fill-mini" style="width: ${job.progress}%; background-color: ${statusColor}"></div>
+                        </div>
+                        <span class="progress-text-mini">${job.progress}%</span>
+                    </div>
                 </td>
                 <td class="job-algo-col">${algorithm}</td>
                 <td class="job-time-col">${startTime}</td>

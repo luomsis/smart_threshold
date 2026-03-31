@@ -38,12 +38,20 @@ class Pipeline(Base):
     train_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     step: Mapped[str] = mapped_column(String(10), default="1m")
 
-    # Algorithm configuration
+    # Algorithm configuration (old fields - deprecated but kept for backward compatibility)
     algorithm: Mapped[str] = mapped_column(String(50), nullable=False)
     algorithm_params: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
+    # Model reference (new fields - preferred way to configure algorithm)
+    model_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    override_params: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
+
     # Exclude periods (list of {start, end} dicts)
     exclude_periods: Mapped[list[dict[str, str]]] = mapped_column(JSON, default=list)
+
+    # Data cleaning configuration
+    outlier_detection: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    smoothing: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
 
     # Scheduling
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)

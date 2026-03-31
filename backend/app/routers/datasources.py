@@ -88,10 +88,9 @@ def _get_datasource_instance(ds_id: str):
     source_type_map = {
         "prometheus": DsType.PROMETHEUS,
         "influxdb": DsType.INFLUXDB,
-        "mock": DsType.MOCK,
         "timescaledb": DsType.TIMESCALEDB,
     }
-    source_type = source_type_map.get(ds_config.source_type.value, DsType.MOCK)
+    source_type = source_type_map.get(ds_config.source_type.value, DsType.PROMETHEUS)
 
     config = DsConfig(
         name=ds_config.name,
@@ -114,7 +113,7 @@ def _get_datasource_instance(ds_id: str):
     "",
     response_model=List[DataSourceConfigResponse],
     summary="获取所有数据源",
-    description="返回系统中配置的所有数据源列表，包括 Prometheus、TimescaleDB、Mock 等类型。",
+    description="返回系统中配置的所有数据源列表，包括 Prometheus、TimescaleDB 等类型。",
 )
 async def list_datasources():
     return list(_datasources.values())
@@ -218,7 +217,7 @@ async def list_endpoint_metrics(ds_id: str, endpoint: str):
     response_model=DataSourceConfigResponse,
     status_code=status.HTTP_201_CREATED,
     summary="创建数据源",
-    description="创建一个新的数据源配置。支持 Prometheus、TimescaleDB、Mock 等类型。TimescaleDB 需要额外提供数据库连接参数。",
+    description="创建一个新的数据源配置。支持 Prometheus、TimescaleDB 等类型。TimescaleDB 需要额外提供数据库连接参数。",
 )
 async def create_datasource(config: DataSourceConfigCreate):
     ds_id = str(uuid.uuid4())

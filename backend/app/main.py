@@ -19,6 +19,7 @@ from backend.app.routers import datasources_router, models_router, predictions_r
 from backend.app.routers.algorithms import router as algorithms_router
 from backend.app.routers.pipelines import router as pipelines_router
 from backend.app.routers.thresholds import router as thresholds_router
+from backend.app.routers.check import router as check_router
 
 
 @asynccontextmanager
@@ -86,6 +87,7 @@ app.include_router(predictions_router, prefix="/api/v1/predictions", tags=["pred
 app.include_router(algorithms_router, prefix="/api/v1/algorithms", tags=["algorithms"])
 app.include_router(pipelines_router, prefix="/api/v1/pipelines", tags=["pipelines"])
 app.include_router(thresholds_router, prefix="/api/v1/thresholds", tags=["thresholds"])
+app.include_router(check_router, prefix="/api/v1", tags=["check"])
 
 
 @app.get(

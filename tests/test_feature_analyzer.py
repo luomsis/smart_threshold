@@ -1,13 +1,13 @@
 """
 特征分析模块单元测试
 
-测试 FeatureExtractor 类的各项功能。
+测试 FeatureExtractor 类的各项功能，包括多周期季节性检测。
 """
 
 import pytest
 import numpy as np
 import pandas as pd
-from smart_threshold.core.feature_analyzer import FeatureExtractor, FeatureResult
+from smart_threshold.core.feature_analyzer import FeatureExtractor, FeatureResult, PeriodSeasonalityResult
 
 
 class TestFeatureExtractor:
@@ -15,17 +15,18 @@ class TestFeatureExtractor:
 
     def test_analyze_seasonal_data(self, seasonal_data):
         """测试季节性数据检测"""
-        extractor = FeatureExtractor(daily_period_lags=1440)
+        extractor = FeatureExtractor(periods=['daily'])
         result = extractor.analyze(seasonal_data)
 
         assert isinstance(result, FeatureResult)
         assert result.has_seasonality == True
-        assert result.seasonality_strength > 0.3
+        assert 'daily' in result.seasonality_periods
+        assert result.seasonality_periods['daily'].acf > 0.3
         assert result.sparsity_ratio < 0.1  # 季节性数据不稀疏
 
     def test_analyze_sparse_data(self, sparse_data):
         """测试稀疏数据检测"""
-        extractor = FeatureExtractor(daily_period_lags=1440)
+        extractor = FeatureExtractor(periods=['daily'])
         result = extractor.analyze(sparse_data)
 
         assert isinstance(result, FeatureResult)
@@ -34,7 +35,7 @@ class TestFeatureExtractor:
 
     def test_analyze_stationary_data(self, stationary_data):
         """测试平稳数据检测"""
-        extractor = FeatureExtractor(daily_period_lags=1440)
+        extractor = FeatureExtractor(periods=['daily'])
         result = extractor.analyze(stationary_data)
 
         assert isinstance(result, FeatureResult)
@@ -44,7 +45,7 @@ class TestFeatureExtractor:
 
     def test_analyze_non_stationary_data(self, non_stationary_data):
         """测试非平稳数据检测"""
-        extractor = FeatureExtractor(daily_period_lags=1440)
+        extractor = FeatureExtractor(periods=['daily'])
         result = extractor.analyze(non_stationary_data)
 
         assert isinstance(result, FeatureResult)
@@ -60,7 +61,7 @@ class TestFeatureExtractor:
 
     def test_minimal_data(self, minimal_data):
         """测试最小数据量（刚好 100 点）"""
-        extractor = FeatureExtractor(daily_period_lags=50)  # 缩小周期以适应小数据
+        extractor = FeatureExtractor(periods=['hourly'])  # 使用小时周期以适应小数据
         result = extractor.analyze(minimal_data)
 
         assert isinstance(result, FeatureResult)
@@ -74,7 +75,7 @@ class TestFeatureExtractor:
 
     def test_numpy_array_input(self, seasonal_data):
         """测试 numpy array 输入"""
-        extractor = FeatureExtractor(daily_period_lags=1440)
+        extractor = FeatureExtractor(periods=['daily'])
         values = seasonal_data.values
 
         result = extractor.analyze(values)
@@ -86,7 +87,7 @@ class TestFeatureExtractor:
         data_with_nan = seasonal_data.copy()
         data_with_nan.iloc[100:110] = np.nan
 
-        extractor = FeatureExtractor(daily_period_lags=1440)
+        extractor = FeatureExtractor(periods=['daily'])
         result = extractor.analyze(data_with_nan)
 
         # 应该能够处理 NaN 并返回有效结果
@@ -95,7 +96,7 @@ class TestFeatureExtractor:
     def test_custom_thresholds(self, seasonal_data):
         """测试自定义阈值"""
         extractor = FeatureExtractor(
-            daily_period_lags=1440,
+            periods=['daily'],
             min_value_threshold=1.0,  # 自定义最小值阈值
             acf_nlags=1000
         )
@@ -105,7 +106,7 @@ class TestFeatureExtractor:
 
     def test_feature_result_repr(self, seasonal_data):
         """测试 FeatureResult 的 __repr__ 方法"""
-        extractor = FeatureExtractor(daily_period_lags=1440)
+        extractor = FeatureExtractor(periods=['daily'])
         result = extractor.analyze(seasonal_data)
 
         repr_str = repr(result)
@@ -115,7 +116,7 @@ class TestFeatureExtractor:
 
     def test_mean_and_std(self, stationary_data):
         """测试均值和标准差计算"""
-        extractor = FeatureExtractor(daily_period_lags=1440)
+        extractor = FeatureExtractor(periods=['daily'])
         result = extractor.analyze(stationary_data)
 
         # 均值应该接近 50
@@ -129,7 +130,7 @@ class TestFeatureExtractor:
         data = pd.Series([0] * 90 + [10] * 10)
         data.index = pd.date_range(start="2024-01-01", periods=100, freq="1min")
 
-        extractor = FeatureExtractor(min_value_threshold=0.1)
+        extractor = FeatureExtractor(periods=['hourly'], min_value_threshold=0.1)
         result = extractor.analyze(data)
 
         assert result.sparsity_ratio > 0.8
@@ -145,10 +146,38 @@ class TestFeatureExtractor:
         dates = pd.date_range(start="2024-01-01", periods=n, freq="1min")
         data = pd.Series(values, index=dates)
 
-        extractor = FeatureExtractor(daily_period_lags=period)
+        extractor = FeatureExtractor(periods=['daily'])
         result = extractor.analyze(data)
 
         assert result.has_seasonality == True
+
+    def test_multi_period_detection(self):
+        """测试多周期季节性检测"""
+        # 创建具有日周期和周周期的数据
+        n = 15000  # 约 10 天数据
+        daily_period = 1440
+        weekly_period = 10080
+        t = np.arange(n)
+
+        # 日周期 + 周周期叠加
+        values = 100 + 30 * np.sin(2 * np.pi * t / daily_period) + 20 * np.sin(2 * np.pi * t / weekly_period)
+
+        dates = pd.date_range(start="2024-01-01", periods=n, freq="1min")
+        data = pd.Series(values, index=dates)
+
+        extractor = FeatureExtractor(periods=['daily', 'weekly'])
+        result = extractor.analyze(data)
+
+        assert result.has_seasonality == True
+        assert 'daily' in result.seasonality_periods
+        assert 'weekly' in result.seasonality_periods
+        # 主周期应该是日周期（振幅更大）
+        assert result.primary_period == 'daily'
+
+    def test_invalid_period(self):
+        """测试无效周期参数"""
+        with pytest.raises(ValueError, match="Invalid period"):
+            FeatureExtractor(periods=['invalid_period'])
 
 
 class TestFeatureResult:
@@ -158,16 +187,18 @@ class TestFeatureResult:
         """测试 FeatureResult 属性"""
         result = FeatureResult(
             has_seasonality=True,
-            seasonality_strength=0.5,
             sparsity_ratio=0.1,
             is_stationary=True,
             adf_pvalue=0.01,
             mean=100.0,
-            std=10.0
+            std=10.0,
+            seasonality_periods={'daily': PeriodSeasonalityResult(acf=0.5, has_seasonality=True)},
+            primary_period='daily'
         )
 
         assert result.has_seasonality == True
-        assert result.seasonality_strength == 0.5
+        assert result.seasonality_periods['daily'].acf == 0.5
+        assert result.primary_period == 'daily'
         assert result.sparsity_ratio == 0.1
         assert result.is_stationary == True
         assert result.adf_pvalue == 0.01
@@ -184,7 +215,7 @@ class TestFeatureExtractorEdgeCases:
         values = np.full(1000, 100.0)  # 全部相同的值
         data = pd.Series(values, index=dates)
 
-        extractor = FeatureExtractor(daily_period_lags=1440)
+        extractor = FeatureExtractor(periods=['daily'])
         result = extractor.analyze(data)
 
         # 常量数据的稀疏度可能较高（取决于阈值）
@@ -196,7 +227,7 @@ class TestFeatureExtractorEdgeCases:
         values = np.zeros(1000)
         data = pd.Series(values, index=dates)
 
-        extractor = FeatureExtractor(daily_period_lags=1440)
+        extractor = FeatureExtractor(periods=['daily'])
         result = extractor.analyze(data)
 
         assert result.sparsity_ratio == 1.0
@@ -209,7 +240,7 @@ class TestFeatureExtractorEdgeCases:
         values = np.random.randn(n)
         data = pd.Series(values, index=dates)
 
-        extractor = FeatureExtractor(daily_period_lags=1440)
+        extractor = FeatureExtractor(periods=['daily'])
         result = extractor.analyze(data)
 
         assert isinstance(result, FeatureResult)

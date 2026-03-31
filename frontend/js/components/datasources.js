@@ -68,9 +68,9 @@ const DataSources = {
             const isDefault = ds.id === this.state.defaultDsId;
             card.className = 'datasource-card' + (isDefault ? ' current' : '');
 
-            const typeTag = ds.source_type === 'mock'
-                ? '<span class="tag tag-custom">Mock</span>'
-                : '<span class="tag tag-system">' + ds.source_type + '</span>';
+            const typeTag = ds.source_type === 'prometheus'
+                ? '<span class="tag tag-system">' + ds.source_type + '</span>'
+                : '<span class="tag tag-custom">' + ds.source_type + '</span>';
 
             const enabledTag = ds.enabled
                 ? '<span class="tag tag-success">已启用</span>'
@@ -105,11 +105,6 @@ const DataSources = {
         localStorage.setItem('currentDataSourceId', dsId);
         this.displayDataSources();
         Helpers.showToast('已设为默认数据源', 'success');
-
-        // Notify Dashboard to switch data source
-        if (typeof Dashboard !== 'undefined') {
-            Dashboard.switchDataSource(dsId);
-        }
     },
 
     /**
@@ -133,7 +128,6 @@ const DataSources = {
                 <select id="ds-type" class="form-control" onchange="DataSources.onTypeChange()">
                     <option value="prometheus">Prometheus</option>
                     <option value="timescaledb">TimescaleDB</option>
-                    <option value="mock">Mock (测试用)</option>
                 </select>
             </div>
             <div id="prometheus-config">
@@ -168,9 +162,6 @@ const DataSources = {
                     <input type="password" id="ds-db-password" class="form-control" placeholder="数据库密码">
                 </div>
             </div>
-            <div id="mock-config" style="display: none;">
-                <p class="text-muted">Mock 数据源用于测试，无需额外配置。</p>
-            </div>
         `;
 
         const footer = `
@@ -188,7 +179,6 @@ const DataSources = {
         const type = document.getElementById('ds-type').value;
         document.getElementById('prometheus-config').style.display = type === 'prometheus' ? 'block' : 'none';
         document.getElementById('timescaledb-config').style.display = type === 'timescaledb' ? 'block' : 'none';
-        document.getElementById('mock-config').style.display = type === 'mock' ? 'block' : 'none';
     },
 
     /**
@@ -229,8 +219,6 @@ const DataSources = {
             config.db_name = dbName;
             config.db_user = document.getElementById('ds-db-user').value || 'postgres';
             config.db_password = document.getElementById('ds-db-password').value || '';
-        } else if (type === 'mock') {
-            config.url = 'mock://localhost';
         }
 
         try {
@@ -277,10 +265,9 @@ const DataSources = {
             </div>
             <div class="form-group">
                 <label>数据源类型</label>
-                <select id="ds-type" class="form-control" onchange="DataSources.onTypeChange()" ${ds.source_type === 'mock' ? 'disabled' : ''}>
+                <select id="ds-type" class="form-control" onchange="DataSources.onTypeChange()">
                     <option value="prometheus" ${ds.source_type === 'prometheus' ? 'selected' : ''}>Prometheus</option>
                     <option value="timescaledb" ${ds.source_type === 'timescaledb' ? 'selected' : ''}>TimescaleDB</option>
-                    <option value="mock" ${ds.source_type === 'mock' ? 'selected' : ''}>Mock (测试用)</option>
                 </select>
             </div>
             <div class="form-group">
@@ -321,9 +308,6 @@ const DataSources = {
                     <label>密码</label>
                     <input type="password" id="ds-db-password" class="form-control" value="${dbPassword}" placeholder="数据库密码">
                 </div>
-            </div>
-            <div id="mock-config" style="display: none;">
-                <p class="text-muted">Mock 数据源用于测试，无需额外配置。</p>
             </div>
         `;
 

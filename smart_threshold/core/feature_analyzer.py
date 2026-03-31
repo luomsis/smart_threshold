@@ -2,13 +2,13 @@
 特征分析模块
 
 实现时序数据特征提取，包括：
-- 季节性（Seasonality）：使用自相关函数（ACF）检测周期性模式
+- 季节性（Seasonality）：使用自相关函数（ACF）检测周期性模式，支持多周期检测
 - 稀疏性（Sparsity）：计算零值或极小值的占比
 - 平稳性（Stationarity）：使用 ADF 检验判断数据平稳性
 """
 
-from dataclasses import dataclass
-from typing import Optional, Tuple
+from dataclasses import dataclass, field
+from typing import Optional, Tuple, Dict, List
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -16,20 +16,33 @@ from statsmodels.tsa.stattools import acf, adfuller
 
 
 @dataclass
+class PeriodSeasonalityResult:
+    """单个周期的季节性检测结果"""
+    acf: float  # ACF 值
+    has_seasonality: bool  # 是否有该周期季节性
+
+
+@dataclass
 class FeatureResult:
     """特征分析结果"""
 
-    has_seasonality: bool  # 是否具有季节性
-    seasonality_strength: float  # 季节性强度 (ACF 值)
+    has_seasonality: bool  # 是否具有季节性（任一周期有季节性即为 True）
     sparsity_ratio: float  # 稀疏度 (0-1)
     is_stationary: bool  # 是否平稳
     adf_pvalue: float  # ADF 检验 p-value
     mean: float  # 均值
     std: float  # 标准差
+    seasonality_periods: Dict[str, 'PeriodSeasonalityResult'] = field(default_factory=dict)  # 各周期的检测结果
+    primary_period: Optional[str] = None  # 主周期（ACF 最高的周期）
 
     def __repr__(self) -> str:
+        periods_str = ", ".join(
+            f"{k}: {v.acf:.2f}" for k, v in self.seasonality_periods.items()
+        ) if self.seasonality_periods else "none"
         return (
             f"FeatureResult(seasonality={self.has_seasonality}, "
+            f"primary={self.primary_period}, "
+            f"periods=[{periods_str}], "
             f"sparsity={self.sparsity_ratio:.2%}, "
             f"stationary={self.is_stationary})"
         )
@@ -39,10 +52,25 @@ class FeatureExtractor:
     """
     时序数据特征提取器
 
+    支持多周期季节性检测：
+    - hourly: 60 分钟（小时周期）
+    - daily: 1440 分钟（日周期）
+    - weekly: 10080 分钟（周周期）
+    - monthly: 43200 分钟（月周期，约 30 天）
+
     使用示例:
-    >>> extractor = FeatureExtractor(daily_period_lags=1440)
+    >>> extractor = FeatureExtractor(periods=['daily', 'weekly'])
     >>> result = extractor.analyze(data)
+    >>> print(result.seasonality_periods['daily'].has_seasonality)
     """
+
+    # 多周期定义（分钟数）
+    PERIODS = {
+        'hourly': 60,      # 小时周期
+        'daily': 1440,     # 日周期
+        'weekly': 10080,   # 周周期
+        'monthly': 43200,  # 月周期 (30天)
+    }
 
     # 默认配置
     SEASONALITY_THRESHOLD = 0.3  # ACF 阈值，超过此值认为有季节性
@@ -51,21 +79,30 @@ class FeatureExtractor:
 
     def __init__(
         self,
-        daily_period_lags: int = 1440,
+        periods: List[str] = ['daily', 'weekly'],
         min_value_threshold: Optional[float] = None,
-        acf_nlags: int = 2000,
+        acf_nlags: int = 20000,
     ):
         """
         初始化特征提取器
 
         Args:
-            daily_period_lags: 日周期的 lag 数量（默认 1440 分钟 = 1 天）
+            periods: 要检测的周期列表，可选值: 'hourly', 'daily', 'weekly', 'monthly'
             min_value_threshold: 判定为"零值"的最小值阈值（None 表示自动判断）
             acf_nlags: ACF 计算的最大 lag 数
         """
-        self.daily_period_lags = daily_period_lags
+        # 验证 periods 参数
+        valid_periods = set(self.PERIODS.keys())
+        for p in periods:
+            if p not in valid_periods:
+                raise ValueError(f"Invalid period '{p}'. Valid options: {valid_periods}")
+
+        self.periods_to_check = periods
         self.min_value_threshold = min_value_threshold
-        self.acf_nlags = min(acf_nlags, daily_period_lags * 2)
+
+        # 计算最大需要的 lag 数
+        max_period_lags = max(self.PERIODS[p] for p in periods)
+        self.acf_nlags = min(acf_nlags, max_period_lags * 2)
 
     def analyze(self, data: pd.Series | np.ndarray) -> FeatureResult:
         """
@@ -90,13 +127,14 @@ class FeatureExtractor:
             raise ValueError(f"数据量不足，至少需要 100 个数据点，当前仅 {len(values)} 个")
 
         # 并行计算各项特征
-        has_seasonality, seasonality_strength = self._detect_seasonality(values)
+        has_seasonality, seasonality_periods, primary_period = self._detect_seasonality(values)
         sparsity_ratio = self._calculate_sparsity(values)
         is_stationary, adf_pvalue = self._detect_stationarity(values)
 
         return FeatureResult(
             has_seasonality=has_seasonality,
-            seasonality_strength=seasonality_strength,
+            seasonality_periods=seasonality_periods,
+            primary_period=primary_period,
             sparsity_ratio=sparsity_ratio,
             is_stationary=is_stationary,
             adf_pvalue=adf_pvalue,
@@ -104,66 +142,103 @@ class FeatureExtractor:
             std=float(np.std(values)),
         )
 
-    def _detect_seasonality(self, values: np.ndarray) -> Tuple[bool, float]:
+    def _acf_at_lag(self, values: np.ndarray, lag: int) -> float:
         """
-        检测季节性
+        计算指定 lag 处的 ACF 值
 
-        使用自相关函数（ACF）检查在日周期位置的自相关性。
+        Args:
+            values: 时序数据
+            lag: Lag 数
+
+        Returns:
+            ACF 值
+        """
+        try:
+            # 使用简单方法计算特定 lag 的 ACF
+            if len(values) < 2 * lag:
+                return 0.0
+
+            # 提取两个序列
+            first = values[:-lag]
+            second = values[lag:]
+
+            # 计算相关性
+            min_len = min(len(first), len(second))
+            correlation = np.corrcoef(first[:min_len], second[:min_len])[0, 1]
+
+            if np.isnan(correlation):
+                return 0.0
+
+            return float(abs(correlation))
+        except Exception:
+            return 0.0
+
+    def _detect_seasonality(self, values: np.ndarray) -> Tuple[bool, Dict[str, PeriodSeasonalityResult], Optional[str]]:
+        """
+        检测多周期季节性
+
+        使用自相关函数（ACF）检查各周期位置的自相关性。
 
         Args:
             values: 时序数据
 
         Returns:
-            (has_seasonality, acf_value): 是否有季节性及其强度
+            (has_seasonality, seasonality_periods, primary_period):
+                是否有季节性，各周期结果，主周期
         """
+        results: Dict[str, PeriodSeasonalityResult] = {}
+
+        # 计算整体 ACF 以优化性能
         try:
-            # 计算 ACF，确保 nlags 不超过数据长度的一半
             nlags = min(self.acf_nlags, len(values) // 2 - 1)
-            if nlags < self.daily_period_lags:
-                # 数据不足，无法检测日周期
-                return False, 0.0
+            if nlags < 10:
+                # 数据太少，逐个计算
+                for period_name in self.periods_to_check:
+                    period_lags = self.PERIODS[period_name]
+                    acf_value = self._acf_at_lag(values, period_lags)
+                    results[period_name] = PeriodSeasonalityResult(
+                        acf=acf_value,
+                        has_seasonality=acf_value > self.SEASONALITY_THRESHOLD
+                    )
+            else:
+                # 使用 statsmodels.acf 计算
+                autocorr = acf(values, nlags=nlags, fft=True)
 
-            autocorr = acf(values, nlags=nlags, fft=True)
+                for period_name in self.periods_to_check:
+                    period_lags = self.PERIODS[period_name]
 
-            # 获取日周期位置的自相关系数
-            seasonality_idx = min(self.daily_period_lags, len(autocorr) - 1)
-            acf_value = autocorr[seasonality_idx]
+                    if period_lags < len(autocorr):
+                        acf_value = autocorr[period_lags]
+                    else:
+                        # Lag 超出范围，使用备用方法
+                        acf_value = self._acf_at_lag(values, period_lags)
 
-            has_seasonality = acf_value > self.SEASONALITY_THRESHOLD
-
-            return has_seasonality, float(acf_value)
+                    results[period_name] = PeriodSeasonalityResult(
+                        acf=float(abs(acf_value)),
+                        has_seasonality=abs(acf_value) > self.SEASONALITY_THRESHOLD
+                    )
 
         except Exception:
-            # ACF 计算失败时，使用备用方法：简单周期检测
-            return self._simple_seasonality_check(values)
+            # ACF 计算失败时，逐个周期使用简单方法
+            for period_name in self.periods_to_check:
+                period_lags = self.PERIODS[period_name]
+                acf_value = self._acf_at_lag(values, period_lags)
+                results[period_name] = PeriodSeasonalityResult(
+                    acf=acf_value,
+                    has_seasonality=acf_value > self.SEASONALITY_THRESHOLD
+                )
 
-    def _simple_seasonality_check(self, values: np.ndarray) -> Tuple[bool, float]:
-        """
-        简单的季节性检测（备用方法）
+        # 综合判断：任一周期有显著季节性则认为有季节性
+        has_seasonality = any(r.has_seasonality for r in results.values())
 
-        比较相隔一个周期的数据点之间的相关性。
-        """
-        period = self.daily_period_lags
-        if len(values) < 2 * period:
-            return False, 0.0
+        # 找出主周期（ACF 最高的周期）
+        primary_period = None
+        if has_seasonality:
+            valid_periods = {k: v for k, v in results.items() if v.has_seasonality}
+            if valid_periods:
+                primary_period = max(valid_periods.items(), key=lambda x: x[1].acf)[0]
 
-        # 提取两个周期的数据
-        first_period = values[:-period]
-        second_period = values[period:]
-
-        # 计算相关性
-        if len(first_period) == 0 or len(second_period) == 0:
-            return False, 0.0
-
-        min_len = min(len(first_period), len(second_period))
-        correlation = np.corrcoef(first_period[:min_len], second_period[:min_len])[0, 1]
-
-        if np.isnan(correlation):
-            return False, 0.0
-
-        has_seasonality = abs(correlation) > self.SEASONALITY_THRESHOLD
-
-        return has_seasonality, float(abs(correlation))
+        return has_seasonality, results, primary_period
 
     def _calculate_sparsity(self, values: np.ndarray) -> float:
         """

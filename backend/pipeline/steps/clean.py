@@ -1,11 +1,11 @@
 """
 Data cleaning step.
 
-Handles missing values and excludes specified periods.
+Handles missing values, excludes specified periods, outlier detection, and smoothing.
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
@@ -15,19 +15,24 @@ def clean_data(
     data: pd.Series,
     exclude_periods: list[dict[str, str]] | None = None,
     interpolation_method: str = "linear",
+    outlier_detection: dict | None = None,
+    smoothing: dict | None = None,
 ) -> tuple[pd.Series, dict[str, Any]]:
     """
     Clean time series data.
 
     Steps:
     1. Remove excluded time periods
-    2. Interpolate missing values
-    3. Remove obvious outliers (optional)
+    2. Detect and handle outliers (optional)
+    3. Interpolate missing values
+    4. Apply smoothing (optional)
 
     Args:
         data: Time series data
         exclude_periods: List of {start, end} periods to exclude
         interpolation_method: Interpolation method for missing values
+        outlier_detection: Outlier detection config {"method": "iqr/zscore", "action": "remove/interpolate", "threshold": 3.0}
+        smoothing: Smoothing config {"method": "moving_avg", "window": 5}
 
     Returns:
         Tuple of (cleaned_data, cleaning_stats)
@@ -35,7 +40,11 @@ def clean_data(
     stats = {
         "original_count": len(data),
         "excluded_count": 0,
+        "outliers_detected": 0,
+        "outliers_removed": 0,
+        "outliers_interpolated": 0,
         "interpolated_count": 0,
+        "smoothing_applied": None,
         "final_count": len(data),
     }
 
@@ -54,7 +63,29 @@ def clean_data(
 
         cleaned = cleaned[mask]
 
-    # Step 2: Handle missing values
+    # Step 2: Outlier detection and handling
+    if outlier_detection:
+        method = outlier_detection.get("method", "iqr")
+        action = outlier_detection.get("action", "remove")
+        threshold = outlier_detection.get("threshold", 3.0)
+
+        outliers = detect_outliers(cleaned, method=method, threshold=threshold)
+        outlier_count = outliers.sum()
+        stats["outliers_detected"] = int(outlier_count)
+
+        if outlier_count > 0:
+            if action == "remove":
+                # Remove outlier points
+                cleaned = cleaned[~outliers]
+                stats["outliers_removed"] = int(outlier_count)
+            elif action == "interpolate":
+                # Replace outliers with NaN and interpolate
+                cleaned[outliers] = np.nan
+                cleaned = cleaned.interpolate(method=interpolation_method)
+                cleaned = cleaned.ffill().bfill()
+                stats["outliers_interpolated"] = int(outlier_count)
+
+    # Step 3: Handle missing values
     # Check for NaN values
     nan_count = cleaned.isna().sum()
 
@@ -72,7 +103,19 @@ def clean_data(
 
         stats["interpolated_count"] = int(nan_count)
 
-    # Step 3: Ensure no negative values for count metrics
+    # Step 4: Apply smoothing
+    if smoothing:
+        smoothing_method = smoothing.get("method", "moving_avg")
+        window = smoothing.get("window", 5)
+
+        if smoothing_method == "moving_avg":
+            # Apply centered moving average
+            cleaned = cleaned.rolling(window=window, center=True).mean()
+            # Remove NaN values created by rolling window
+            cleaned = cleaned.dropna()
+            stats["smoothing_applied"] = f"moving_avg(window={window})"
+
+    # Step 5: Ensure no negative values for count metrics
     # (can be configured per metric type)
     cleaned[cleaned < 0] = 0
 

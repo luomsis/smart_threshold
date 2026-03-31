@@ -14,7 +14,6 @@ class DataSourceType(str, Enum):
     """数据源类型"""
     PROMETHEUS = "prometheus"
     INFLUXDB = "influxdb"
-    MOCK = "mock"
     TIMESCALEDB = "timescaledb"
 
 
@@ -222,7 +221,8 @@ class FeatureAnalysisRequest(BaseModel):
 class FeatureAnalysisResponse(BaseModel):
     """特征分析响应"""
     has_seasonality: bool = Field(..., description="是否有季节性")
-    seasonality_strength: float = Field(..., description="季节性强度")
+    seasonality_periods: Dict[str, Any] = Field(default_factory=dict, description="各周期的检测结果")
+    primary_period: Optional[str] = Field(None, description="主周期")
     sparsity_ratio: float = Field(..., description="稀疏度")
     is_stationary: bool = Field(..., description="是否平稳")
     adf_pvalue: float = Field(..., description="ADF检验p值")
@@ -308,6 +308,19 @@ class ExcludePeriod(BaseModel):
     end: datetime = Field(..., description="End time")
 
 
+class OutlierDetection(BaseModel):
+    """异常点检测配置"""
+    method: str = Field("iqr", description="检测方法: iqr/zscore")
+    action: str = Field("remove", description="处理动作: remove/interpolate")
+    threshold: float = Field(3.0, description="Z-Score 阈值（仅 zscore 方法使用）")
+
+
+class SmoothingConfig(BaseModel):
+    """数据平滑配置"""
+    method: str = Field("moving_avg", description="平滑方法: moving_avg")
+    window: int = Field(5, description="窗口大小")
+
+
 class PipelineCreate(BaseModel):
     """Create pipeline request"""
     name: str = Field(..., description="Pipeline name")
@@ -321,10 +334,17 @@ class PipelineCreate(BaseModel):
     train_end: datetime = Field(..., description="Training end time")
     step: str = Field("1m", description="Query step")
 
-    algorithm: str = Field(..., description="Algorithm ID")
-    algorithm_params: Dict[str, Any] = Field(default_factory=dict, description="Algorithm parameters")
+    # Algorithm configuration - two ways to specify:
+    # Option 1 (deprecated): Direct algorithm and params
+    algorithm: Optional[str] = Field(None, description="Algorithm ID (deprecated, use model_id)")
+    algorithm_params: Dict[str, Any] = Field(default_factory=dict, description="Algorithm parameters (deprecated)")
+    # Option 2 (preferred): Reference to Model config with optional overrides
+    model_id: Optional[str] = Field(None, description="Model config ID (preferred)")
+    override_params: Optional[Dict[str, Any]] = Field(None, description="Override parameters for model")
 
     exclude_periods: List[ExcludePeriod] = Field(default_factory=list, description="Periods to exclude")
+    outlier_detection: Optional[OutlierDetection] = Field(None, description="Outlier detection config")
+    smoothing: Optional[SmoothingConfig] = Field(None, description="Smoothing config")
     enabled: bool = Field(True, description="Enable pipeline")
     schedule_type: str = Field("manual", description="Schedule type: manual or scheduled")
     cron_expr: Optional[str] = Field(None, description="Cron expression for scheduled pipelines")
@@ -343,10 +363,21 @@ class PipelineUpdate(BaseModel):
     step: Optional[str] = None
     algorithm: Optional[str] = None
     algorithm_params: Optional[Dict[str, Any]] = None
+    model_id: Optional[str] = None
+    override_params: Optional[Dict[str, Any]] = None
     exclude_periods: Optional[List[ExcludePeriod]] = None
+    outlier_detection: Optional[OutlierDetection] = None
+    smoothing: Optional[SmoothingConfig] = None
     enabled: Optional[bool] = None
     schedule_type: Optional[str] = None
     cron_expr: Optional[str] = None
+
+
+class ModelInfo(BaseModel):
+    """Brief model info for Pipeline response"""
+    id: str = Field(..., description="Model ID")
+    name: str = Field(..., description="Model display name")
+    model_type: str = Field(..., description="Model type (prophet/welford/static)")
 
 
 class PipelineResponse(BaseModel):
@@ -356,14 +387,24 @@ class PipelineResponse(BaseModel):
     description: str
     metric_id: str
     datasource_id: str
+    datasource_name: Optional[str] = Field(None, description="Data source name")
     endpoint: Optional[str]
     labels: Dict[str, str]
     train_start: datetime
     train_end: datetime
     step: str
+    # Algorithm configuration (old fields - deprecated)
     algorithm: str
     algorithm_params: Dict[str, Any]
+    # Model reference (new fields)
+    model_id: Optional[str] = None
+    override_params: Optional[Dict[str, Any]] = None
+    # Computed fields
+    model_info: Optional[ModelInfo] = Field(None, description="Model config info if model_id is set")
+    effective_params: Optional[Dict[str, Any]] = Field(None, description="Merged params from model + overrides")
     exclude_periods: List[Dict[str, Any]]
+    outlier_detection: Optional[Dict[str, Any]] = None
+    smoothing: Optional[Dict[str, Any]] = None
     enabled: bool
     schedule_type: str
     cron_expr: Optional[str]
@@ -473,3 +514,21 @@ class JobLogsResponse(BaseModel):
     """Response for job logs"""
     job_id: str
     logs: List[JobLogEntry]
+
+
+# ==================== Check Schemas (New) ====================
+
+class CheckRequest(BaseModel):
+    """实时异常判断请求"""
+    metric_id: str = Field(..., description="指标标识符")
+    current_value: float = Field(..., description="当前值")
+    timestamp: Optional[datetime] = Field(None, description="时间戳，用于选择对应时间点的阈值")
+
+
+class CheckResponse(BaseModel):
+    """异常判断响应"""
+    metric_id: str = Field(..., description="指标标识符")
+    is_anomaly: bool = Field(..., description="是否异常")
+    severity: str = Field(..., description="异常严重程度: normal/warning/critical")
+    threshold_used: Dict[str, float] = Field(..., description="使用的阈值: {upper, lower}")
+    deviation_percent: Optional[float] = Field(None, description="偏离百分比")

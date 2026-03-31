@@ -287,10 +287,18 @@ class ModelRouter:
         self, features: FeatureResult, algorithm: AlgorithmType
     ) -> None:
         """打印选择信息"""
+        # 获取主周期的 ACF 值作为代表
+        primary_acf = 0.0
+        if features.primary_period and features.primary_period in features.seasonality_periods:
+            primary_acf = features.seasonality_periods[features.primary_period].acf
+        elif features.seasonality_periods:
+            # 如果没有主周期，取最大值
+            primary_acf = max(v.acf for v in features.seasonality_periods.values())
+
         print(f"\n{'='*60}")
         print(f"[ModelRouter] 算法选型结果")
         print(f"{'='*60}")
-        print(f"  季节性:     {features.has_seasonality} (ACF={features.seasonality_strength:.3f})")
+        print(f"  季节性:     {features.has_seasonality} (主周期={features.primary_period or 'N/A'}, ACF={primary_acf:.3f})")
         print(f"  稀疏度:     {features.sparsity_ratio:.1%}")
         print(f"  平稳性:     {features.is_stationary} (p={features.adf_pvalue:.4f})")
         print(f"  均值:       {features.mean:.2f}")
@@ -321,8 +329,15 @@ class ModelRouter:
         reasons = []
 
         if features.has_seasonality:
+            # 获取主周期的 ACF 值
+            primary_acf = 0.0
+            if features.primary_period and features.primary_period in features.seasonality_periods:
+                primary_acf = features.seasonality_periods[features.primary_period].acf
+            elif features.seasonality_periods:
+                primary_acf = max(v.acf for v in features.seasonality_periods.values())
+
             reasons.append(
-                f"✓ 检测到季节性 (ACF={features.seasonality_strength:.3f} > "
+                f"✓ 检测到季节性 (主周期={features.primary_period or 'unknown'}, ACF={primary_acf:.3f} > "
                 f"{ModelRouter.SEASONALITY_THRESHOLD})，使用 Prophet 处理周期模式"
             )
         elif features.sparsity_ratio >= ModelRouter.SPARSITY_THRESHOLD:

@@ -83,7 +83,8 @@ async def analyze_features(request: FeatureAnalysisRequest):
 
     return FeatureAnalysisResponse(
         has_seasonality=features.has_seasonality,
-        seasonality_strength=features.seasonality_strength,
+        seasonality_periods={k: {"acf": v.acf, "has_seasonality": v.has_seasonality} for k, v in features.seasonality_periods.items()},
+        primary_period=features.primary_period,
         sparsity_ratio=features.sparsity_ratio,
         is_stationary=features.is_stationary,
         adf_pvalue=features.adf_pvalue,

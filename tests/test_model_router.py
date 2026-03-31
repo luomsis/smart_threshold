@@ -10,7 +10,7 @@ import pandas as pd
 from unittest.mock import MagicMock, patch
 
 from smart_threshold.core.model_router import ModelRouter, AlgorithmType
-from smart_threshold.core.feature_analyzer import FeatureResult
+from smart_threshold.core.feature_analyzer import FeatureResult, PeriodSeasonalityResult
 from smart_threshold.core.predictors.base import BasePredictor
 from smart_threshold.core.predictors.prophet_predictor import ProphetPredictor
 from smart_threshold.core.predictors.welford_predictor import WelfordPredictor
@@ -78,7 +78,7 @@ class TestModelRouter:
         """测试自定义特征提取器"""
         from smart_threshold.core.feature_analyzer import FeatureExtractor
 
-        custom_extractor = FeatureExtractor(daily_period_lags=1440)
+        custom_extractor = FeatureExtractor(periods=['daily'])
         router = ModelRouter(
             feature_extractor=custom_extractor,
             verbose=False
@@ -92,12 +92,13 @@ class TestModelRouter:
         """测试季节性路由解释"""
         features = FeatureResult(
             has_seasonality=True,
-            seasonality_strength=0.5,
             sparsity_ratio=0.1,
             is_stationary=True,
             adf_pvalue=0.01,
             mean=100.0,
-            std=10.0
+            std=10.0,
+            seasonality_periods={'daily': PeriodSeasonalityResult(acf=0.5, has_seasonality=True)},
+            primary_period='daily'
         )
 
         explanation = ModelRouter.explain_routing(features)
@@ -109,12 +110,13 @@ class TestModelRouter:
         """测试稀疏数据路由解释"""
         features = FeatureResult(
             has_seasonality=False,
-            seasonality_strength=0.1,
             sparsity_ratio=0.9,
             is_stationary=True,
             adf_pvalue=0.01,
             mean=10.0,
-            std=5.0
+            std=5.0,
+            seasonality_periods={'daily': PeriodSeasonalityResult(acf=0.1, has_seasonality=False)},
+            primary_period=None
         )
 
         explanation = ModelRouter.explain_routing(features)
@@ -125,12 +127,13 @@ class TestModelRouter:
         """测试 Welford 路由解释"""
         features = FeatureResult(
             has_seasonality=False,
-            seasonality_strength=0.1,
             sparsity_ratio=0.1,
             is_stationary=True,
             adf_pvalue=0.01,
             mean=50.0,
-            std=10.0
+            std=10.0,
+            seasonality_periods={'daily': PeriodSeasonalityResult(acf=0.1, has_seasonality=False)},
+            primary_period=None
         )
 
         explanation = ModelRouter.explain_routing(features)

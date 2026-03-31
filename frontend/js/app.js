@@ -11,10 +11,9 @@ const App = {
         console.log('SmartThreshold App initializing...');
 
         // Initialize components
-        Sidebar.init();
+        await Sidebar.init();
 
         // Initialize page-specific components
-        await Dashboard.init();
         await Models.init();
         await DataSources.init();
         await Pipelines.init();
@@ -33,6 +32,9 @@ const App = {
         });
 
         console.log('SmartThreshold App initialized');
+
+        // Load initial page data
+        Pipelines.refresh();
     },
 
     /**
@@ -59,9 +61,7 @@ const App = {
         Sidebar.currentPage = page;
 
         // Trigger page-specific init
-        if (page === 'dashboard') {
-            Dashboard.refresh();
-        } else if (page === 'models') {
+        if (page === 'models') {
             Models.refresh();
         } else if (page === 'datasources') {
             DataSources.refresh();

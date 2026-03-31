@@ -2,7 +2,7 @@
 SmartThreshold 完整演示脚本
 
 演示 DB 监控算法自动选型的完整流程：
-1. 生成三种场景的 Mock 数据
+1. 生成模拟时序数据
 2. 执行特征分析
 3. 自动路由到对应算法
 4. 训练前 6 天，预测第 7 天
@@ -17,6 +17,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 import pandas as pd
+import numpy as np
 from rich.console import Console
 from rich.theme import Theme
 from rich.panel import Panel
@@ -28,7 +29,6 @@ from datetime import datetime
 
 from smart_threshold.core.model_router import ModelRouter, AlgorithmType
 from smart_threshold.core.feature_analyzer import FeatureExtractor
-from smart_threshold.data.generator import DataGenerator, ScenarioType
 from smart_threshold.utils.visualization import TimeSeriesVisualizer
 
 # 自定义主题
@@ -46,7 +46,51 @@ custom_theme = Theme({
 console = Console(theme=custom_theme)
 
 
-def run_scenario(scenario: ScenarioType, days: int = 7):
+def generate_scenario_data(scenario: str, days: int = 7) -> pd.Series:
+    """
+    生成指定场景的模拟数据
+
+    Args:
+        scenario: 场景类型 (qps, rt, error_count)
+        days: 生成天数
+
+    Returns:
+        pd.Series: 时序数据
+    """
+    periods = days * 1440  # 每天分钟数
+    dates = pd.date_range(start='2024-01-01', periods=periods, freq='1min')
+    t = np.arange(periods)
+
+    if scenario == 'qps':
+        # QPS: 24小时周期 + 线性增长 + 噪声
+        daily_cycle = np.sin(2 * np.pi * t / 1440)
+        hour_of_day = (t / 60) % 24
+        business_cycle = 0.5 * np.sin(2 * np.pi * (hour_of_day - 6) / 24) + 0.3 * np.sin(4 * np.pi * (hour_of_day - 6) / 24)
+        growth = 0.005 * t
+        base_qps = 1000
+        values = base_qps + 300 * business_cycle + growth + np.random.normal(0, 50, periods)
+        values = np.maximum(values, 0)
+    elif scenario == 'rt':
+        # RT: 平稳 + 随机尖峰
+        base_rt = 50
+        values = np.random.normal(base_rt, 10, periods)
+        # 注入尖峰
+        spike_mask = np.random.random(periods) < 0.05
+        for loc in np.where(spike_mask)[0]:
+            duration = np.random.randint(1, 6)
+            end = min(loc + duration, periods)
+            values[loc:end] = np.random.normal(300, 50)
+        values = np.maximum(values, 0)
+    else:  # error_count
+        # 错误数: 稀疏数据，大部分为0
+        values = np.zeros(periods, dtype=int)
+        error_mask = np.random.random(periods) < 0.05
+        values[error_mask] = np.random.poisson(lam=5, size=np.sum(error_mask))
+
+    return pd.Series(values, index=dates, name=scenario)
+
+
+def run_scenario(scenario: str, days: int = 7):
     """
     运行单个场景的完整流程
 
@@ -55,7 +99,7 @@ def run_scenario(scenario: ScenarioType, days: int = 7):
         days: 总天数
     """
     # 场景标题面板
-    scenario_name = scenario.value.upper()
+    scenario_name = scenario.upper()
     console.print()
     console.print(Panel(
         Text(f"▓ 场景: {scenario_name} ▓", justify="center"),
@@ -67,7 +111,7 @@ def run_scenario(scenario: ScenarioType, days: int = 7):
 
     # 进度步骤
     steps = [
-        "[1/5] 📊 生成 Mock 数据",
+        "[1/5] 📊 生成模拟数据",
         "[2/5] 🔍 执行特征分析",
         "[3/5] 🤖 自动选择算法",
         "[4/5] 🧠 训练与预测",
@@ -80,8 +124,7 @@ def run_scenario(scenario: ScenarioType, days: int = 7):
             console.print(f"  {step}", style="info")
 
         # 1. 生成数据
-        generator = DataGenerator(freq="1min", seed=42)
-        data = generator.generate(scenario, days=days)
+        data = generate_scenario_data(scenario, days=days)
         console.print(f"    ✓ 生成 {len(data)} 个数据点", style="success")
 
         # 2. 特征分析
@@ -119,9 +162,9 @@ def run_scenario(scenario: ScenarioType, days: int = 7):
 
         # 场景特定的标签
         labels = {
-            ScenarioType.QPS: ("QPS (每秒查询数)", "QPS"),
-            ScenarioType.RT: ("RT (响应时间 ms)", "响应时间 (ms)"),
-            ScenarioType.ERROR_COUNT: ("错误计数", "错误数"),
+            "qps": ("QPS (每秒查询数)", "QPS"),
+            "rt": ("RT (响应时间 ms)", "响应时间 (ms)"),
+            "error_count": ("错误计数", "错误数"),
         }
 
         ylabel, short_ylabel = labels[scenario]
@@ -130,7 +173,7 @@ def run_scenario(scenario: ScenarioType, days: int = 7):
             train_data=train_data,
             test_data=test_data,
             prediction=prediction,
-            title=f"{scenario.value.upper()} 场景 - {short_ylabel}预测与动态阈值",
+            title=f"{scenario.upper()} 场景 - {short_ylabel}预测与动态阈值",
             ylabel=ylabel,
             show_anomalies=True,
         )
@@ -138,7 +181,7 @@ def run_scenario(scenario: ScenarioType, days: int = 7):
         # 保存图表
         output_dir = project_root / "outputs"
         output_dir.mkdir(exist_ok=True)
-        output_path = output_dir / f"{scenario.value}_prediction.png"
+        output_path = output_dir / f"{scenario}_prediction.png"
         fig.savefig(str(output_path), dpi=150, bbox_inches="tight")
         console.print(f"    ✓ 图表已保存: [dim]{output_path}[/dim]", style="success")
 
@@ -177,8 +220,9 @@ def main():
 
     # 运行三种场景
     results = {}
+    scenarios = ['qps', 'rt', 'error_count']
 
-    for scenario in ScenarioType:
+    for scenario in scenarios:
         features, predictor, prediction = run_scenario(scenario, days=7)
         results[scenario] = {
             "features": features,
@@ -217,7 +261,7 @@ def main():
         sparsity = f"{f.sparsity_ratio:>6.1%}"
 
         table.add_row(
-            scenario.value,
+            scenario,
             Text(seasonality, style=seasonality_style),
             Text(sparsity, style="info"),
             Text(algo, style="value"),

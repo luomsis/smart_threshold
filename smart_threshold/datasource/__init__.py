@@ -6,7 +6,6 @@ Datasource 模块
 
 from smart_threshold.datasource.prometheus_client import (
     PrometheusDataSource,
-    MockPrometheusDataSource,
     create_datasource,
 )
 from smart_threshold.datasource.timescaledb_client import TimescaleDBDataSource
@@ -23,7 +22,6 @@ from smart_threshold.datasource.models import (
 
 __all__ = [
     "PrometheusDataSource",
-    "MockPrometheusDataSource",
     "TimescaleDBDataSource",
     "create_datasource",
     "DataSourceConfig",

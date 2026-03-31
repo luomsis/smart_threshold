@@ -67,10 +67,17 @@ class ProphetPredictor(BasePredictor):
             config["n_changepoints"] = 35
 
         # 根据季节性强度调整季节性先验
-        if features.seasonality_strength > 0.7:
+        # 获取主周期的 ACF 值作为季节性强度
+        seasonality_strength = 0.0
+        if features.primary_period and features.primary_period in features.seasonality_periods:
+            seasonality_strength = features.seasonality_periods[features.primary_period].acf
+        elif features.seasonality_periods:
+            seasonality_strength = max(v.acf for v in features.seasonality_periods.values())
+
+        if seasonality_strength > 0.7:
             # 强季节性，增加季节性先验权重
             config["seasonality_prior_scale"] = 15.0
-        elif features.seasonality_strength < 0.5:
+        elif seasonality_strength < 0.5:
             # 弱季节性，降低季节性先验权重
             config["seasonality_prior_scale"] = 5.0
 

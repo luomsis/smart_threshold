@@ -3,10 +3,11 @@
  */
 
 const Sidebar = {
-    currentPage: 'dashboard',
+    currentPage: 'pipelines',
 
-    init() {
+    async init() {
         this.bindEvents();
+        await this.loadDefaultDataSource();
     },
 
     bindEvents() {
@@ -17,6 +18,17 @@ const Sidebar = {
                 this.navigateTo(page);
             });
         });
+    },
+
+    async loadDefaultDataSource() {
+        try {
+            const defaultDs = await API.getDefaultDataSource();
+            if (defaultDs) {
+                this.updateCurrentDataSource(defaultDs.name);
+            }
+        } catch (e) {
+            // No default data source
+        }
     },
 
     navigateTo(page) {
@@ -35,9 +47,7 @@ const Sidebar = {
         this.currentPage = page;
 
         // Trigger page-specific init
-        if (page === 'dashboard') {
-            Dashboard.refresh();
-        } else if (page === 'models') {
+        if (page === 'models') {
             Models.refresh();
         } else if (page === 'datasources') {
             DataSources.refresh();
@@ -112,7 +122,10 @@ const Sidebar = {
     },
 
     updateCurrentDataSource(name) {
-        document.getElementById('current-datasource').textContent = name;
+        const el = document.getElementById('current-datasource');
+        if (el) {
+            el.textContent = name;
+        }
     },
 };
 

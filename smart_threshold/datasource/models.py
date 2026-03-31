@@ -12,7 +12,6 @@ class DataSourceType(Enum):
     """数据源类型"""
     PROMETHEUS = "prometheus"
     INFLUXDB = "influxdb"
-    MOCK = "mock"
     TIMESCALEDB = "timescaledb"
 
 

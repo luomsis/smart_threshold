@@ -22,8 +22,8 @@ SmartThreshold 采用前后端分离架构：
 ┌─────────────────────────────────────────────────────────────────┐
 │                         前端 (Frontend)                          │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │
-│  │   仪表盘     │  │  模型管理    │  │      数据源管理          │ │
-│  │  (Chart.js) │  │  (ECharts)  │  │   (Prometheus/Mock)     │ │
+│  │  Pipeline   │  │  模型管理    │  │      数据源管理          │ │
+│  │   (任务)     │  │  (ECharts)  │  │   (Prometheus/TimescaleDB)│ │
 │  └─────────────┘  └─────────────┘  └─────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
                               │ HTTP REST API
@@ -128,12 +128,15 @@ python examples/demo.py
 ## 代码示例
 
 ```python
-from smart_threshold import ModelRouter, DataGenerator, ScenarioType
+from smart_threshold import ModelRouter
+from smart_threshold.core.feature_analyzer import FeatureExtractor
 import pandas as pd
+import numpy as np
 
-# 1. 生成 Mock 数据
-generator = DataGenerator()
-data = generator.generate(ScenarioType.QPS, days=7)
+# 1. 生成示例数据
+dates = pd.date_range(start='2024-01-01', periods=10080, freq='1min')
+values = 1000 + 300 * np.sin(2 * np.pi * np.arange(10080) / 1440) + np.random.normal(0, 50, 10080)
+data = pd.Series(values, index=dates)
 
 # 2. 自动选择算法并训练
 router = ModelRouter()
@@ -208,8 +211,6 @@ smart_threshold/
 │   ├── datasource/            # 数据源客户端
 │   │   ├── prometheus_client.py
 │   │   └── timescaledb_client.py
-│   └── data/
-│       └── generator.py       # Mock 数据生成
 └── examples/
     └── demo.py                # 命令行演示
 ```
@@ -220,7 +221,7 @@ SmartThreshold 提供了一个功能完整的 Web 应用，采用 Grafana 风格
 
 ### 仪表盘
 
-- 📊 **数据查询**：支持 Prometheus 和 Mock 数据源
+- 📊 **数据查询**：支持 Prometheus 和 TimescaleDB 数据源
 - 🎯 **训练区间设置**：可视化选择训练数据时间范围
 - 🤖 **模型对比**：同时对比多个模型，自动选择最佳模型
 - 📈 **结果可视化**：使用 ECharts 展示预测结果和置信区间
@@ -244,7 +245,6 @@ SmartThreshold 提供了一个功能完整的 Web 应用，采用 Grafana 风格
 
 - 支持 Prometheus 数据源
 - 支持 TimescaleDB 数据源
-- 支持 Mock 数据源（用于演示）
 - 添加、编辑、删除数据源配置
 
 ### 启动 Web 应用

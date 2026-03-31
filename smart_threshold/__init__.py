@@ -12,9 +12,6 @@ from smart_threshold.core.feature_analyzer import FeatureExtractor, FeatureResul
 from smart_threshold.core.model_router import ModelRouter, AlgorithmType
 from smart_threshold.core.param_optimizer import ParamOptimizer, OptimizationResult
 
-# 数据生成
-from smart_threshold.data.generator import DataGenerator, ScenarioType
-
 # 配置管理
 from smart_threshold.config import ConfigManager
 
@@ -29,9 +26,6 @@ __all__ = [
     "AlgorithmType",
     "ParamOptimizer",
     "OptimizationResult",
-    # 数据生成
-    "DataGenerator",
-    "ScenarioType",
     # 配置管理
     "ConfigManager",
     # 向后兼容

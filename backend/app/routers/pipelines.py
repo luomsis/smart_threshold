@@ -23,27 +23,101 @@ from backend.app.schemas import (
     PipelineRunRequest,
     PipelineRunResponse,
     JobResponse,
+    ModelInfo,
 )
+from smart_threshold.config.model_config import get_model_config_manager
+from backend.app.routers.datasources import _datasources
 
 router = APIRouter()
 
 
-def pipeline_to_response(pipeline: Pipeline) -> PipelineResponse:
+def get_effective_params(pipeline: Pipeline) -> dict:
+    """
+    Compute effective algorithm parameters from model_id + override_params.
+
+    Returns merged params from Model config and pipeline overrides.
+    Falls back to algorithm_params if model_id is not set.
+    """
+    if pipeline.model_id:
+        manager = get_model_config_manager()
+        model_config = manager.get_config(pipeline.model_id)
+        if model_config:
+            # Start with model's default params
+            params = model_config.get_params()
+            # Apply override_params if present
+            if pipeline.override_params:
+                params.update(pipeline.override_params)
+            return params
+        # Model not found - fall back to algorithm_params
+        return pipeline.algorithm_params or {}
+    # No model_id - use algorithm_params directly
+    return pipeline.algorithm_params or {}
+
+
+def get_model_info(pipeline: Pipeline) -> Optional[ModelInfo]:
+    """
+    Get ModelInfo from pipeline's model_id.
+
+    Returns None if model_id is not set or model not found.
+    """
+    if pipeline.model_id:
+        manager = get_model_config_manager()
+        model_config = manager.get_config(pipeline.model_id)
+        if model_config:
+            return ModelInfo(
+                id=model_config.id,
+                name=model_config.name,
+                model_type=model_config.model_type.value,
+            )
+    return None
+
+
+def get_algorithm_from_model(pipeline: Pipeline) -> str:
+    """
+    Get algorithm type from model_id or fall back to algorithm field.
+    """
+    if pipeline.model_id:
+        manager = get_model_config_manager()
+        model_config = manager.get_config(pipeline.model_id)
+        if model_config:
+            return model_config.model_type.value
+    return pipeline.algorithm
+
+
+def get_datasource_name(datasource_id: str) -> Optional[str]:
+    """Get data source name by ID from in-memory storage."""
+    if not datasource_id:
+        return None
+    ds = _datasources.get(datasource_id)
+    return ds.name if ds else None
+
+
+def pipeline_to_response(pipeline: Pipeline, db: Session = None) -> PipelineResponse:
     """Convert Pipeline model to response schema."""
+    # Get datasource name from in-memory storage
+    datasource_name = get_datasource_name(pipeline.datasource_id)
+
     return PipelineResponse(
         id=pipeline.id,
         name=pipeline.name,
         description=pipeline.description,
         metric_id=pipeline.metric_id,
         datasource_id=pipeline.datasource_id,
+        datasource_name=datasource_name,
         endpoint=pipeline.endpoint,
         labels=pipeline.labels or {},
         train_start=pipeline.train_start,
         train_end=pipeline.train_end,
         step=pipeline.step,
-        algorithm=pipeline.algorithm,
+        algorithm=get_algorithm_from_model(pipeline),
         algorithm_params=pipeline.algorithm_params or {},
+        model_id=pipeline.model_id,
+        override_params=pipeline.override_params,
+        model_info=get_model_info(pipeline),
+        effective_params=get_effective_params(pipeline),
         exclude_periods=pipeline.exclude_periods or [],
+        outlier_detection=pipeline.outlier_detection,
+        smoothing=pipeline.smoothing,
         enabled=pipeline.enabled,
         schedule_type=pipeline.schedule_type,
         cron_expr=pipeline.cron_expr,
@@ -86,6 +160,30 @@ def job_to_response(job: Job) -> JobResponse:
     description="创建新的阈值训练管道。配置包括数据源、指标、训练时间范围、算法及参数等。",
 )
 async def create_pipeline(request: PipelineCreate, db: Session = Depends(get_db)):
+    # Determine algorithm from model_id or direct algorithm field
+    algorithm = request.algorithm
+    algorithm_params = request.algorithm_params
+
+    if request.model_id:
+        # Validate model exists
+        manager = get_model_config_manager()
+        model_config = manager.get_config(request.model_id)
+        if not model_config:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Model config not found: {request.model_id}"
+            )
+        # Use model's algorithm type
+        algorithm = model_config.model_type.value
+        # Get params from model, will be overridden later if override_params provided
+        algorithm_params = model_config.get_params()
+    elif not algorithm:
+        # Neither model_id nor algorithm provided
+        raise HTTPException(
+            status_code=400,
+            detail="Either model_id or algorithm must be provided"
+        )
+
     pipeline = Pipeline(
         id=str(uuid.uuid4()),
         name=request.name,
@@ -97,9 +195,13 @@ async def create_pipeline(request: PipelineCreate, db: Session = Depends(get_db)
         train_start=request.train_start,
         train_end=request.train_end,
         step=request.step,
-        algorithm=request.algorithm,
-        algorithm_params=request.algorithm_params,
+        algorithm=algorithm,
+        algorithm_params=algorithm_params,
+        model_id=request.model_id,
+        override_params=request.override_params,
         exclude_periods=[p.model_dump() for p in request.exclude_periods],
+        outlier_detection=request.outlier_detection.model_dump() if request.outlier_detection else None,
+        smoothing=request.smoothing.model_dump() if request.smoothing else None,
         enabled=request.enabled,
         schedule_type=request.schedule_type,
         cron_expr=request.cron_expr,
@@ -111,7 +213,7 @@ async def create_pipeline(request: PipelineCreate, db: Session = Depends(get_db)
     db.commit()
     db.refresh(pipeline)
 
-    return pipeline_to_response(pipeline)
+    return pipeline_to_response(pipeline, db)
 
 
 @router.get(
@@ -133,7 +235,7 @@ async def list_pipelines(
         query = query.filter(Pipeline.algorithm == algorithm)
 
     pipelines = query.order_by(Pipeline.created_at.desc()).all()
-    return [pipeline_to_response(p) for p in pipelines]
+    return [pipeline_to_response(p, db) for p in pipelines]
 
 
 @router.get(
@@ -146,7 +248,7 @@ async def get_pipeline(pipeline_id: str, db: Session = Depends(get_db)):
     pipeline = db.query(Pipeline).filter(Pipeline.id == pipeline_id).first()
     if not pipeline:
         raise HTTPException(status_code=404, detail=f"Pipeline not found: {pipeline_id}")
-    return pipeline_to_response(pipeline)
+    return pipeline_to_response(pipeline, db)
 
 
 @router.put(
@@ -166,9 +268,32 @@ async def update_pipeline(
 
     update_data = request.model_dump(exclude_unset=True)
 
+    # Handle model_id update - update algorithm accordingly
+    if "model_id" in update_data and update_data["model_id"]:
+        manager = get_model_config_manager()
+        model_config = manager.get_config(update_data["model_id"])
+        if not model_config:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Model config not found: {update_data['model_id']}"
+            )
+        # Update algorithm to match model type
+        update_data["algorithm"] = model_config.model_type.value
+        # Update algorithm_params to model defaults if not explicitly provided
+        if "algorithm_params" not in update_data and "override_params" not in update_data:
+            update_data["algorithm_params"] = model_config.get_params()
+
     # Handle exclude_periods specially
-    if "exclude_periods" in update_data:
+    if "exclude_periods" in update_data and request.exclude_periods:
         update_data["exclude_periods"] = [p.model_dump() for p in request.exclude_periods]
+
+    # Handle outlier_detection specially
+    if "outlier_detection" in update_data and request.outlier_detection:
+        update_data["outlier_detection"] = request.outlier_detection.model_dump()
+
+    # Handle smoothing specially
+    if "smoothing" in update_data and request.smoothing:
+        update_data["smoothing"] = request.smoothing.model_dump()
 
     for key, value in update_data.items():
         setattr(pipeline, key, value)
@@ -177,7 +302,7 @@ async def update_pipeline(
     db.commit()
     db.refresh(pipeline)
 
-    return pipeline_to_response(pipeline)
+    return pipeline_to_response(pipeline, db)
 
 
 @router.delete(

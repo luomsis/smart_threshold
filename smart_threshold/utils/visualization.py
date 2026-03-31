@@ -238,13 +238,20 @@ class TimeSeriesVisualizer:
         fig, ax = plt.subplots(figsize=(10, 4))
 
         # 准备特征数据
+        # 获取主周期的 ACF 值作为季节性强度
+        seasonality_strength = 0.0
+        if features.primary_period and features.primary_period in features.seasonality_periods:
+            seasonality_strength = features.seasonality_periods[features.primary_period].acf
+        elif features.seasonality_periods:
+            seasonality_strength = max(v.acf for v in features.seasonality_periods.values())
+
         feature_names = [
             "季节性强度",
             "稀疏度",
             "平稳性\n(1-p值)",
         ]
         feature_values = [
-            features.seasonality_strength,
+            seasonality_strength,
             features.sparsity_ratio,
             1 - features.adf_pvalue if features.adf_pvalue is not None else 0,
         ]

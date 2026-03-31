@@ -20,11 +20,7 @@
             </div>
             <nav class="sidebar-nav">
                 <ul class="nav-list">
-                    <li class="nav-item active" data-page="dashboard">
-                        <span class="nav-icon">📊</span>
-                        <span class="nav-text">仪表盘</span>
-                    </li>
-                    <li class="nav-item" data-page="pipelines">
+                    <li class="nav-item active" data-page="pipelines">
                         <span class="nav-icon">🔧</span>
                         <span class="nav-text">Pipeline</span>
                     </li>
@@ -45,180 +41,13 @@
             <div class="sidebar-footer">
                 <div class="datasource-info">
                     <span class="label">默认数据源</span>
-                    <span class="value" id="current-datasource">Mock 数据源</span>
+                    <span class="value" id="current-datasource">未配置</span>
                 </div>
             </div>
         </aside>
 
         <!-- Main Content -->
         <main class="main-content">
-            <!-- Dashboard Page -->
-            <div id="page-dashboard" class="page active">
-                <div class="page-header">
-                    <h2 class="page-title">仪表盘</h2>
-                    <div class="page-actions">
-                        <button class="btn btn-secondary" id="btn-refresh">
-                            <span>🔄</span> 刷新
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Query Panel -->
-                <div class="panel query-panel">
-                    <div class="panel-header">
-                        <h3 class="panel-title">数据查询</h3>
-                    </div>
-                    <div class="panel-body">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="datasource-select">数据源</label>
-                                <select id="datasource-select" class="form-control">
-                                    <option value="">请选择数据源...</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="endpoint-select">Endpoint</label>
-                                <select id="endpoint-select" class="form-control">
-                                    <option value="">请选择 Endpoint...</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="metric-select">指标</label>
-                                <select id="metric-select" class="form-control">
-                                    <option value="">请选择指标...</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="period-select">查询周期</label>
-                                <select id="period-select" class="form-control">
-                                    <option value="1">1 天</option>
-                                    <option value="3">3 天</option>
-                                    <option value="7">7 天</option>
-                                    <option value="14">14 天</option>
-                                    <option value="30">30 天</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="step-select">采样间隔</label>
-                                <select id="step-select" class="form-control">
-                                    <option value="1m">1 分钟</option>
-                                    <option value="5m">5 分钟</option>
-                                    <option value="15m">15 分钟</option>
-                                    <option value="1h">1 小时</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="display: flex; align-items: flex-end;">
-                                <button class="btn btn-primary" id="btn-query">
-                                    <span>🔍</span> 查询
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Stats Panel -->
-                <div class="panel stats-panel" id="stats-panel" style="display: none;">
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <span class="stat-label">数据点数</span>
-                            <span class="stat-value" id="stat-count">-</span>
-                        </div>
-                        <div class="stat-card">
-                            <span class="stat-label">最小值</span>
-                            <span class="stat-value" id="stat-min">-</span>
-                        </div>
-                        <div class="stat-card">
-                            <span class="stat-label">最大值</span>
-                            <span class="stat-value" id="stat-max">-</span>
-                        </div>
-                        <div class="stat-card">
-                            <span class="stat-label">平均值</span>
-                            <span class="stat-value" id="stat-mean">-</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Chart Panel -->
-                <div class="panel chart-panel" id="chart-panel" style="display: none;">
-                    <div class="panel-header">
-                        <h3 class="panel-title" id="chart-title">时序数据</h3>
-                        <div class="panel-actions">
-                            <span class="train-range-label">训练区间: <span id="train-range-text">未设置</span></span>
-                        </div>
-                    </div>
-                    <div class="panel-body">
-                        <div id="main-chart" class="chart-container"></div>
-                    </div>
-                </div>
-
-                <!-- Training Range Panel -->
-                <div class="panel training-panel" id="training-panel" style="display: none;">
-                    <div class="panel-header">
-                        <h3 class="panel-title">训练区间设置</h3>
-                    </div>
-                    <div class="panel-body">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="train-start">开始日期</label>
-                                <input type="date" id="train-start" class="form-control">
-                            </div>
-                            <div class="form-group">
-                                <label for="train-end">结束日期</label>
-                                <input type="date" id="train-end" class="form-control">
-                            </div>
-                            <div class="form-group">
-                                <button class="btn btn-secondary" id="btn-set-train">设置训练区间</button>
-                            </div>
-                            <div class="form-group">
-                                <button class="btn btn-secondary" id="btn-auto-train">使用前 80%</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Model Comparison Panel -->
-                <div class="panel comparison-panel" id="comparison-panel" style="display: none;">
-                    <div class="panel-header">
-                        <h3 class="panel-title">模型对比</h3>
-                    </div>
-                    <div class="panel-body">
-                        <div class="model-selection">
-                            <h4>选择模型</h4>
-                            <div class="model-list" id="model-list"></div>
-                        </div>
-                        <div class="form-actions">
-                            <button class="btn btn-primary" id="btn-compare">
-                                <span>🚀</span> 运行对比
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Comparison Results Panel -->
-                <div class="panel results-panel" id="results-panel" style="display: none;">
-                    <div class="panel-header">
-                        <h3 class="panel-title">对比结果</h3>
-                    </div>
-                    <div class="panel-body">
-                        <div id="results-summary" class="results-summary"></div>
-                        <table class="results-table" id="results-table">
-                            <thead>
-                                <tr>
-                                    <th>排名</th>
-                                    <th>模型</th>
-                                    <th>MAPE (%)</th>
-                                    <th>MAE</th>
-                                    <th>覆盖率 (%)</th>
-                                    <th>状态</th>
-                                </tr>
-                            </thead>
-                            <tbody id="results-body"></tbody>
-                        </table>
-                        <div id="comparison-chart" class="chart-container"></div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Models Page -->
             <div id="page-models" class="page">
                 <div class="page-header">
@@ -282,7 +111,7 @@
             </div>
 
             <!-- Pipelines Page -->
-            <div id="page-pipelines" class="page">
+            <div id="page-pipelines" class="page active">
                 <div class="page-header">
                     <h2 class="page-title">Pipeline 管理</h2>
                     <div class="page-actions">
@@ -348,6 +177,9 @@
                         <button class="btn btn-primary" id="btn-save-pipeline">
                             <span>💾</span> 保存
                         </button>
+                        <button class="btn btn-secondary" id="btn-run-pipeline">
+                            <span>▶</span> 运行
+                        </button>
                     </div>
                 </div>
                 <div class="pipeline-edit-form">
@@ -359,9 +191,9 @@
                                 <input type="text" id="edit-pipeline-name" class="form-control" placeholder="输入 Pipeline 名称">
                             </div>
                             <div class="form-group" style="flex: 1;">
-                                <label>算法 *</label>
-                                <select id="edit-pipeline-algorithm" class="form-control">
-                                    <option value="">选择算法...</option>
+                                <label>模型 *</label>
+                                <select id="edit-pipeline-model" class="form-control">
+                                    <option value="">选择模型...</option>
                                 </select>
                             </div>
                         </div>
@@ -371,37 +203,115 @@
                         </div>
                     </div>
 
+                    <!-- Model Parameters Section -->
+                    <div class="form-section" id="edit-pipeline-model-params-section" style="display: none;">
+                        <h4>模型参数 <small style="color: #888; font-weight: normal;">(可覆盖默认值)</small></h4>
+                        <div id="edit-pipeline-model-params" class="param-editor"></div>
+                    </div>
+
                     <div class="form-section">
                         <h4>数据配置</h4>
-                        <div class="form-row">
-                            <div class="form-group" style="flex: 1;">
-                                <label>数据源 *</label>
-                                <select id="edit-pipeline-datasource" class="form-control">
-                                    <option value="">选择数据源...</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="flex: 1;">
-                                <label>指标 ID *</label>
-                                <input type="text" id="edit-pipeline-metric" class="form-control" placeholder="如: cpu_usage, qps">
+                        <div class="panel-body">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="edit-pipeline-datasource">数据源</label>
+                                    <select id="edit-pipeline-datasource" class="form-control">
+                                        <option value="">请选择数据源...</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-pipeline-endpoint">Endpoint</label>
+                                    <select id="edit-pipeline-endpoint" class="form-control">
+                                        <option value="">请选择 Endpoint...</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-pipeline-metric">指标</label>
+                                    <select id="edit-pipeline-metric" class="form-control">
+                                        <option value="">请选择指标...</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-pipeline-period">查询周期</label>
+                                    <select id="edit-pipeline-period" class="form-control">
+                                        <option value="1">1 天</option>
+                                        <option value="3">3 天</option>
+                                        <option value="7">7 天</option>
+                                        <option value="14">14 天</option>
+                                        <option value="30">30 天</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-pipeline-step">采样间隔</label>
+                                    <select id="edit-pipeline-step" class="form-control">
+                                        <option value="1m">1 分钟</option>
+                                        <option value="5m">5 分钟</option>
+                                        <option value="15m">15 分钟</option>
+                                        <option value="1h">1 小时</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="display: flex; align-items: flex-end;">
+                                    <button class="btn btn-primary" id="edit-pipeline-btn-query">
+                                        <span>🔍</span> 查询预览
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="form-section">
-                        <h4>训练时间范围</h4>
-                        <div class="form-row">
-                            <div class="form-group" style="flex: 1;">
-                                <label>开始时间 *</label>
-                                <input type="datetime-local" id="edit-pipeline-train-start" class="form-control">
+                    <!-- Preview Stats Panel -->
+                    <div class="panel stats-panel" id="edit-pipeline-stats-panel" style="display: none;">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <span class="stat-label">数据点数</span>
+                                <span class="stat-value" id="edit-pipeline-stat-count">-</span>
                             </div>
-                            <div class="form-group" style="flex: 1;">
-                                <label>结束时间 *</label>
-                                <input type="datetime-local" id="edit-pipeline-train-end" class="form-control">
+                            <div class="stat-card">
+                                <span class="stat-label">最小值</span>
+                                <span class="stat-value" id="edit-pipeline-stat-min">-</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-label">最大值</span>
+                                <span class="stat-value" id="edit-pipeline-stat-max">-</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-label">平均值</span>
+                                <span class="stat-value" id="edit-pipeline-stat-mean">-</span>
                             </div>
                         </div>
                     </div>
 
-                    <div id="edit-pipeline-params" class="form-section"></div>
+                    <!-- Preview Chart Panel -->
+                    <div class="panel chart-panel" id="edit-pipeline-chart-panel" style="display: none;">
+                        <div class="panel-header">
+                            <h3 class="panel-title" id="edit-pipeline-chart-title">数据预览</h3>
+                            <div class="panel-actions">
+                                <span class="train-range-label">训练区间: <span id="edit-pipeline-train-range-text">未设置</span></span>
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <div id="edit-pipeline-main-chart" class="chart-container"></div>
+                        </div>
+                    </div>
+
+                    <!-- Training Range Panel -->
+                    <div class="panel training-panel" id="edit-pipeline-training-panel" style="display: none;">
+                        <div class="panel-header">
+                            <h3 class="panel-title">训练区间</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="edit-pipeline-train-start">开始日期</label>
+                                    <input type="date" id="edit-pipeline-train-start" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-pipeline-train-end">结束日期</label>
+                                    <input type="date" id="edit-pipeline-train-end" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -415,10 +325,8 @@
                         </button>
                     </div>
                 </div>
-                <div class="job-status-panel">
-                    <div id="job-status-content" class="job-status-content">
-                        <!-- Job status will be rendered here -->
-                    </div>
+                <div id="job-status-content">
+                    <!-- Job status and Pipeline info will be rendered here -->
                 </div>
             </div>
         </main>
@@ -452,7 +360,7 @@
     <script src="js/api.js"></script>
     <script src="js/components/sidebar.js"></script>
     <script src="js/components/charts.js"></script>
-    <script src="js/components/dashboard.js"></script>
+    <script src="js/components/data-query.js"></script>
     <script src="js/components/models.js"></script>
     <script src="js/components/datasources.js"></script>
     <script src="js/components/pipelines.js"></script>

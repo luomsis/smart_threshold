@@ -1103,7 +1103,15 @@ def render_main():
                 feature_html += create_feature_badge("平稳性", "否", "#dc3545") + " "
 
             feature_html += create_feature_badge("稀疏度", f"{features.sparsity_ratio:.1%}", "#667eea") + " "
-            feature_html += create_feature_badge("季节强度", f"{features.seasonality_strength:.2f}", "#17a2b8")
+
+            # 获取主周期的 ACF 值作为季节性强度
+            seasonality_strength = 0.0
+            if features.primary_period and features.primary_period in features.seasonality_periods:
+                seasonality_strength = features.seasonality_periods[features.primary_period].acf
+            elif features.seasonality_periods:
+                seasonality_strength = max(v.acf for v in features.seasonality_periods.values())
+
+            feature_html += create_feature_badge("季节强度", f"{seasonality_strength:.2f}", "#17a2b8")
 
             st.markdown(feature_html, unsafe_allow_html=True)
 

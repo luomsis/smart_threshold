@@ -18,28 +18,6 @@ from smart_threshold.algorithms import AlgorithmResult
 class TestFetchStep:
     """Test data fetching step."""
 
-    def test_fetch_from_mock_datasource(self):
-        """Should fetch data from mock datasource."""
-        config = {
-            "name": "mock",
-            "source_type": "mock",
-            "url": "http://localhost:9090",
-        }
-
-        end = datetime.now()
-        start = end - timedelta(hours=1)
-
-        data, error = fetch_data(
-            datasource_config=config,
-            metric_id="qps",
-            train_start=start,
-            train_end=end,
-            step="1m",
-        )
-
-        # Mock datasource should return data
-        assert error is None or data is not None
-
     def test_fetch_with_invalid_datasource(self):
         """Should return error for invalid datasource."""
         config = {

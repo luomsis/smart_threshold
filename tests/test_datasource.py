@@ -1,12 +1,12 @@
 """
 Datasource 客户端单元测试
 
-测试 PrometheusDataSource、MockPrometheusDataSource 和 TimescaleDBDataSource 的功能。
+测试 PrometheusDataSource 和 TimescaleDBDataSource 的功能。
 """
 
 import pytest
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 from smart_threshold.datasource.models import (
     DataSourceConfig,
@@ -18,7 +18,6 @@ from smart_threshold.datasource.models import (
 )
 from smart_threshold.datasource.prometheus_client import (
     PrometheusDataSource,
-    MockPrometheusDataSource,
     create_datasource,
 )
 
@@ -30,7 +29,7 @@ class TestDataSourceConfig:
         """测试默认配置值"""
         config = DataSourceConfig(
             name="test",
-            source_type=DataSourceType.MOCK,
+            source_type=DataSourceType.PROMETHEUS,
             url="http://localhost:9090"
         )
         assert config.enabled is True
@@ -59,86 +58,6 @@ class TestDataSourceConfig:
         assert config.auth_token == "test-token"
         assert config.headers == {"X-Custom": "value"}
         assert config.default_timeout == 60
-
-
-class TestMockPrometheusDataSource:
-    """Mock 数据源测试"""
-
-    @pytest.fixture
-    def mock_datasource(self):
-        """创建 Mock 数据源实例"""
-        config = DataSourceConfig(
-            name="mock-test",
-            source_type=DataSourceType.MOCK,
-            url="mock://localhost"
-        )
-        return MockPrometheusDataSource(config)
-
-    def test_list_metrics(self, mock_datasource):
-        """测试列出指标"""
-        metrics = mock_datasource.list_metrics()
-        assert len(metrics) > 0
-        assert all(isinstance(m, MetricMetadata) for m in metrics)
-        metric_names = [m.name for m in metrics]
-        assert "qps" in metric_names
-        assert "cpu_usage" in metric_names
-
-    def test_list_label_names(self, mock_datasource):
-        """测试列出标签名称"""
-        labels = mock_datasource.list_label_names()
-        assert len(labels) > 0
-        assert "instance" in labels
-        assert "job" in labels
-        assert "endpoint" in labels
-
-    def test_get_label_values(self, mock_datasource):
-        """测试获取标签值"""
-        result = mock_datasource.get_label_values("endpoint")
-        assert isinstance(result, LabelValues)
-        assert result.label == "endpoint"
-        assert len(result.values) > 0
-        assert "/api/v1/query" in result.values
-
-    def test_get_endpoints(self, mock_datasource):
-        """测试获取 endpoint 列表"""
-        endpoints = mock_datasource.get_endpoints()
-        assert isinstance(endpoints, list)
-        assert len(endpoints) > 0
-        assert "/api/v1/query" in endpoints
-        assert "/metrics" in endpoints
-        assert "/health" in endpoints
-
-    def test_query_range(self, mock_datasource):
-        """测试范围查询"""
-        time_range = TimeRange(
-            start=datetime.now() - timedelta(days=1),
-            end=datetime.now(),
-            step="1m"
-        )
-        result = mock_datasource.query_range("qps", time_range)
-        assert isinstance(result, QueryResult)
-        assert result.success is True
-        assert result.data is not None
-        assert len(result.data) > 0
-        assert len(result.data[0].timestamps) > 0
-        assert len(result.data[0].values) > 0
-
-    def test_query_range_with_latency(self, mock_datasource):
-        """测试延迟指标查询"""
-        time_range = TimeRange(
-            start=datetime.now() - timedelta(days=1),
-            end=datetime.now(),
-            step="5m"
-        )
-        result = mock_datasource.query_range("latency_ms", time_range)
-        assert result.success is True
-        assert result.data is not None
-
-    def test_test_connection(self, mock_datasource):
-        """测试连接测试"""
-        result = mock_datasource.test_connection()
-        assert result["success"] is True
-        assert result["version"]["mode"] == "mock"
 
 
 class TestPrometheusDataSource:
@@ -244,16 +163,6 @@ class TestPrometheusDataSource:
 
 class TestCreateDatasource:
     """数据源工厂函数测试"""
-
-    def test_create_mock_datasource(self):
-        """测试创建 Mock 数据源"""
-        config = DataSourceConfig(
-            name="mock",
-            source_type=DataSourceType.MOCK,
-            url="mock://localhost"
-        )
-        ds = create_datasource(config)
-        assert isinstance(ds, MockPrometheusDataSource)
 
     def test_create_prometheus_datasource(self):
         """测试创建 Prometheus 数据源"""

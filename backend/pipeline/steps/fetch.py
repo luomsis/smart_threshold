@@ -40,7 +40,7 @@ def fetch_data(
     """
     try:
         # Create data source client
-        source_type = datasource_config.get("source_type", "mock")
+        source_type = datasource_config.get("source_type", "prometheus")
 
         # Build config
         from smart_threshold.datasource.models import DataSourceConfig

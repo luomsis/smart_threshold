@@ -13,7 +13,7 @@ from smart_threshold.core.predictors.base import BasePredictor, PredictionResult
 from smart_threshold.core.predictors.prophet_predictor import ProphetPredictor
 from smart_threshold.core.predictors.welford_predictor import WelfordPredictor
 from smart_threshold.core.predictors.static_predictor import StaticPredictor
-from smart_threshold.core.feature_analyzer import FeatureResult
+from smart_threshold.core.feature_analyzer import FeatureResult, PeriodSeasonalityResult
 
 
 class TestBasePredictor:
@@ -149,12 +149,13 @@ class TestWelfordPredictor:
         """测试高变异系数的默认配置"""
         features = FeatureResult(
             has_seasonality=False,
-            seasonality_strength=0.1,
             sparsity_ratio=0.1,
             is_stationary=True,
             adf_pvalue=0.01,
             mean=10.0,
-            std=10.0  # CV = 1.0, 高波动
+            std=10.0,  # CV = 1.0, 高波动
+            seasonality_periods={'daily': PeriodSeasonalityResult(acf=0.1, has_seasonality=False)},
+            primary_period=None
         )
 
         config = WelfordPredictor.get_default_config(features)
@@ -165,12 +166,13 @@ class TestWelfordPredictor:
         """测试低变异系数的默认配置"""
         features = FeatureResult(
             has_seasonality=False,
-            seasonality_strength=0.1,
             sparsity_ratio=0.1,
             is_stationary=True,
             adf_pvalue=0.01,
             mean=100.0,
-            std=10.0  # CV = 0.1, 低波动
+            std=10.0,  # CV = 0.1, 低波动
+            seasonality_periods={'daily': PeriodSeasonalityResult(acf=0.1, has_seasonality=False)},
+            primary_period=None
         )
 
         config = WelfordPredictor.get_default_config(features)
@@ -181,12 +183,13 @@ class TestWelfordPredictor:
         """测试非平稳数据的默认配置"""
         features = FeatureResult(
             has_seasonality=False,
-            seasonality_strength=0.1,
             sparsity_ratio=0.1,
             is_stationary=False,  # 非平稳
             adf_pvalue=0.5,
             mean=100.0,
-            std=20.0
+            std=20.0,
+            seasonality_periods={'daily': PeriodSeasonalityResult(acf=0.1, has_seasonality=False)},
+            primary_period=None
         )
 
         config = WelfordPredictor.get_default_config(features)
@@ -277,12 +280,13 @@ class TestStaticPredictor:
         """测试高稀疏度的默认配置"""
         features = FeatureResult(
             has_seasonality=False,
-            seasonality_strength=0.1,
             sparsity_ratio=0.98,  # 极高稀疏度
             is_stationary=True,
             adf_pvalue=0.01,
             mean=1.0,
-            std=5.0
+            std=5.0,
+            seasonality_periods={'daily': PeriodSeasonalityResult(acf=0.1, has_seasonality=False)},
+            primary_period=None
         )
 
         config = StaticPredictor.get_default_config(features)
@@ -294,12 +298,13 @@ class TestStaticPredictor:
         """测试中等稀疏度的默认配置"""
         features = FeatureResult(
             has_seasonality=False,
-            seasonality_strength=0.1,
             sparsity_ratio=0.92,  # 中等稀疏度
             is_stationary=True,
             adf_pvalue=0.01,
             mean=5.0,
-            std=10.0
+            std=10.0,
+            seasonality_periods={'daily': PeriodSeasonalityResult(acf=0.1, has_seasonality=False)},
+            primary_period=None
         )
 
         config = StaticPredictor.get_default_config(features)
@@ -356,12 +361,13 @@ class TestProphetPredictor:
         """测试非平稳数据的默认配置"""
         features = FeatureResult(
             has_seasonality=True,
-            seasonality_strength=0.5,
             sparsity_ratio=0.1,
             is_stationary=False,  # 非平稳
             adf_pvalue=0.5,
             mean=100.0,
-            std=20.0
+            std=20.0,
+            seasonality_periods={'daily': PeriodSeasonalityResult(acf=0.5, has_seasonality=True)},
+            primary_period='daily'
         )
 
         config = ProphetPredictor.get_default_config(features)
@@ -373,12 +379,13 @@ class TestProphetPredictor:
         """测试强季节性的默认配置"""
         features = FeatureResult(
             has_seasonality=True,
-            seasonality_strength=0.8,  # 强季节性
             sparsity_ratio=0.1,
             is_stationary=True,
             adf_pvalue=0.01,
             mean=100.0,
-            std=20.0
+            std=20.0,
+            seasonality_periods={'daily': PeriodSeasonalityResult(acf=0.8, has_seasonality=True)},  # 强季节性
+            primary_period='daily'
         )
 
         config = ProphetPredictor.get_default_config(features)
