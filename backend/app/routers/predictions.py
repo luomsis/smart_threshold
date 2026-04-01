@@ -2,8 +2,9 @@
 Prediction API router.
 """
 
+import time
 from datetime import datetime, timedelta, timezone
-from typing import List
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -19,8 +20,12 @@ from backend.app.schemas import (
     ModelComparisonResult,
     MetricData,
     MetricDataPoint,
+    DirectPredictRequest,
+    DirectPredictResponse,
+    OriginalDataPoint,
+    PredictedDataPoint,
 )
-from smart_threshold.config import ModelType
+from smart_threshold.config import ModelType, get_model_config_manager
 from smart_threshold.core.feature_analyzer import FeatureExtractor
 from smart_threshold.core.predictors.prophet_predictor import ProphetPredictor
 from smart_threshold.core.predictors.welford_predictor import WelfordPredictor
@@ -101,8 +106,6 @@ async def analyze_features(request: FeatureAnalysisRequest):
     description="使用指定模型对时序数据进行预测。返回预测值及置信区间上下限。数据长度需大于 100 点。",
 )
 async def predict(request: PredictionRequest):
-    from smart_threshold.config import get_model_config_manager
-
     manager = get_model_config_manager()
     config = manager.get_config(request.model_id)
 
@@ -142,8 +145,6 @@ async def predict(request: PredictionRequest):
     description="对比多个模型在同一数据集上的预测效果。返回每个模型的 MAE、MAPE、覆盖率等评估指标及预测结果。",
 )
 async def compare_models(request: ModelComparisonRequest):
-    from smart_threshold.config import get_model_config_manager
-
     if not request.model_ids:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -232,3 +233,232 @@ async def compare_models(request: ModelComparisonRequest):
         results=results,
         test_data=test_data_response,
     )
+
+
+def _get_datasource_config(ds_id: str) -> Dict[str, Any]:
+    """Get datasource configuration by ID."""
+    import json
+    from pathlib import Path
+
+    CONFIG_DIR = Path(__file__).parent.parent.parent.parent / "config"
+    DATASOURCES_FILE = CONFIG_DIR / "datasources.json"
+
+    if not DATASOURCES_FILE.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"DataSource {ds_id} not found (no config file)"
+        )
+
+    try:
+        with open(DATASOURCES_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        for ds in data:
+            if ds.get("id") == ds_id:
+                return ds
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"DataSource {ds_id} not found"
+        )
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to parse datasources config"
+        )
+
+
+@router.post(
+    "/direct",
+    response_model=DirectPredictResponse,
+    summary="直接预测接口",
+    description="不通过 Pipeline 直接提供预测功能。从数据源查询数据，清洗后使用指定模型进行训练和预测。",
+)
+async def direct_predict(request: DirectPredictRequest):
+    from backend.pipeline.steps.fetch import fetch_data
+    from backend.pipeline.steps.clean import clean_data
+    from backend.pipeline.steps.train import train_model, parse_step_to_freq
+
+    start_time = time.time()
+
+    # Model type to algorithm ID mapping
+    # model_config.model_type values: prophet, welford, static
+    # AlgorithmRegistry IDs: prophet, three_sigma, moving_average
+    MODEL_TYPE_TO_ALGORITHM = {
+        "prophet": "prophet",
+        "welford": "three_sigma",
+        "static": "moving_average",
+    }
+
+    # Step 1: Get datasource config
+    ds_config = _get_datasource_config(request.datasource_id)
+
+    # Step 2: Get model config
+    manager = get_model_config_manager()
+    model_config = manager.get_config(request.model_id)
+
+    if not model_config:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model {request.model_id} not found"
+        )
+
+    # Step 3: Fetch data
+    data, fetch_error = fetch_data(
+        datasource_config=ds_config,
+        metric_id=request.metric_id,
+        train_start=request.train_start,
+        train_end=request.train_end,
+        step=request.step,
+        endpoint=request.endpoint,
+        labels=request.labels,
+    )
+
+    if fetch_error or data is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=fetch_error or "Failed to fetch data"
+        )
+
+    # Step 4: Clean data
+    exclude_periods = [p.model_dump() for p in request.exclude_periods] if request.exclude_periods else None
+    outlier_detection = request.outlier_detection.model_dump() if request.outlier_detection else None
+    smoothing = request.smoothing.model_dump() if request.smoothing else None
+
+    cleaned_data, cleaning_stats = clean_data(
+        data=data,
+        exclude_periods=exclude_periods,
+        outlier_detection=outlier_detection,
+        smoothing=smoothing,
+    )
+
+    # Step 5: Calculate predict periods
+    if request.predict_end:
+        # Calculate periods from predict_end
+        freq = parse_step_to_freq(request.step)
+        # Calculate time delta in appropriate units
+        time_delta = request.predict_end - request.train_end
+        if freq.endswith("min"):
+            periods = int(time_delta.total_seconds() / 60)
+        elif freq == "H":
+            periods = int(time_delta.total_seconds() / 3600)
+        elif freq == "D":
+            periods = int(time_delta.days)
+        else:
+            # Default: assume minutes
+            periods = int(time_delta.total_seconds() / 60)
+    elif request.predict_periods:
+        periods = request.predict_periods
+    else:
+        # Default: 24 hours based on step
+        step_minutes = _parse_step_to_minutes(request.step)
+        periods = int(24 * 60 / step_minutes)  # 24 hours worth of points
+
+    # Step 6: Get effective algorithm params
+    base_params = model_config.get_params()
+    if request.override_params:
+        effective_params = {**base_params, **request.override_params}
+    else:
+        effective_params = base_params
+
+    # Map model_type to algorithm ID
+    model_type_value = model_config.model_type.value
+    algorithm = MODEL_TYPE_TO_ALGORITHM.get(model_type_value, model_type_value)
+
+    # Step 7: Train model and predict
+    model, result, train_error = train_model(
+        data=cleaned_data,
+        algorithm=algorithm,
+        algorithm_params=effective_params,
+        periods=periods,
+        step=request.step,
+    )
+
+    if train_error or result is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=train_error or "Training failed"
+        )
+
+    # Step 8: Build response
+    execution_time = time.time() - start_time
+
+    # Convert original data to response format
+    original_data_points = [
+        OriginalDataPoint(timestamp=ts, value=val)
+        for ts, val in zip(cleaned_data.index, cleaned_data.values)
+    ]
+
+    # Convert predicted data to response format
+    # AlgorithmResult uses 'timestamps' attribute (not 'ds')
+    yhat_list = result.yhat.tolist() if hasattr(result.yhat, 'tolist') else list(result.yhat)
+    yhat_upper_list = result.yhat_upper.tolist() if hasattr(result.yhat_upper, 'tolist') else list(result.yhat_upper)
+    yhat_lower_list = result.yhat_lower.tolist() if hasattr(result.yhat_lower, 'tolist') else list(result.yhat_lower)
+
+    predicted_data_points = [
+        PredictedDataPoint(
+            timestamp=ts,
+            yhat=yhat,
+            yhat_upper=yhat_upper,
+            yhat_lower=yhat_lower,
+        )
+        for ts, yhat, yhat_upper, yhat_lower in zip(
+            result.timestamps, yhat_list, yhat_upper_list, yhat_lower_list
+        )
+    ]
+
+    # Get algorithm name from metadata
+    result_algorithm = result.metadata.get("algorithm", algorithm)
+
+    # Calculate validation metrics on training data
+    validation_metrics = _calculate_validation_metrics(cleaned_data, result)
+
+    return DirectPredictResponse(
+        metric_id=request.metric_id,
+        model_id=request.model_id,
+        algorithm=result_algorithm,
+        train_start=request.train_start,
+        train_end=request.train_end,
+        train_points=len(cleaned_data),
+        predict_points=len(predicted_data_points),
+        original_data=original_data_points,
+        predicted_data=predicted_data_points,
+        train_stats=cleaning_stats,
+        validation_metrics=validation_metrics,
+        execution_time=execution_time,
+    )
+
+
+def _parse_step_to_minutes(step: str) -> int:
+    """Parse step string to minutes."""
+    step_map = {
+        "1m": 1,
+        "5m": 5,
+        "15m": 15,
+        "30m": 30,
+        "1h": 60,
+        "1d": 1440,
+    }
+    return step_map.get(step, 1)
+
+
+def _calculate_validation_metrics(data: pd.Series, result) -> Dict[str, Any]:
+    """Calculate validation metrics comparing actual vs predicted on training period."""
+    # For training data, we compare the fitted values
+    # Prophet provides yhat for historical data, other algorithms may not
+
+    metrics = {
+        "mean": float(data.mean()),
+        "std": float(data.std()),
+        "min": float(data.min()),
+        "max": float(data.max()),
+    }
+
+    # Calculate coverage metrics for the prediction
+    if hasattr(result, 'yhat_upper') and hasattr(result, 'yhat_lower'):
+        # For prediction interval coverage analysis
+        avg_interval_width = np.mean(result.yhat_upper - result.yhat_lower)
+        metrics["avg_interval_width"] = float(avg_interval_width)
+        metrics["interval_width_ratio"] = float(avg_interval_width / (metrics["std"] + 1e-10))
+
+    return metrics

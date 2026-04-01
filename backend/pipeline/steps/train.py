@@ -11,10 +11,33 @@ import pandas as pd
 from smart_threshold.algorithms import AlgorithmRegistry, BaseAlgorithm, AlgorithmResult
 
 
+def parse_step_to_freq(step: str) -> str:
+    """
+    Convert step string to Prophet frequency format.
+
+    Args:
+        step: Step string like "1m", "5m", "15m", "1h"
+
+    Returns:
+        Prophet frequency string like "1min", "5min", "15min", "H"
+    """
+    step_map = {
+        "1m": "1min",
+        "5m": "5min",
+        "15m": "15min",
+        "30m": "30min",
+        "1h": "H",
+        "1d": "D",
+    }
+    return step_map.get(step, step)
+
+
 def train_model(
     data: pd.Series,
     algorithm: str,
     algorithm_params: dict[str, Any] | None = None,
+    periods: int = 1440,
+    step: str = "1m",
 ) -> tuple[BaseAlgorithm | None, AlgorithmResult | None, str | None]:
     """
     Train a threshold model.
@@ -23,6 +46,8 @@ def train_model(
         data: Cleaned time series data
         algorithm: Algorithm ID (e.g., "three_sigma", "prophet")
         algorithm_params: Algorithm parameters
+        periods: Number of periods to predict (default: 1440 = 24 hours)
+        step: Data sampling interval (e.g., "1m", "5m", "15m")
 
     Returns:
         Tuple of (trained_model, prediction_result, error_message)
@@ -48,8 +73,11 @@ def train_model(
         # Fit model
         model.fit(data)
 
-        # Generate prediction (24 hours = 1440 minutes)
-        result = model.predict(periods=1440, freq="1min")
+        # Convert step to Prophet frequency format
+        freq = parse_step_to_freq(step)
+
+        # Generate prediction
+        result = model.predict(periods=periods, freq=freq)
 
         return model, result, None
 

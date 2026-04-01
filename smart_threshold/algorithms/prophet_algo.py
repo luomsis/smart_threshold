@@ -127,7 +127,13 @@ class ProphetAlgorithm(BaseAlgorithm):
         self._training_data = data.copy()
         self._last_timestamp = data.index[-1]
 
-        df = pd.DataFrame({"ds": data.index, "y": data.values})
+        # Remove timezone from index if present (Prophet doesn't support timezone)
+        index = data.index
+        if index.tz is not None:
+            # Convert to timezone-naive by removing tz info
+            index = index.tz_localize(None)
+
+        df = pd.DataFrame({"ds": index, "y": data.values})
 
         try:
             from prophet import Prophet
@@ -148,7 +154,11 @@ class ProphetAlgorithm(BaseAlgorithm):
             self._use_fallback = False
 
         except Exception as e:
-            warnings.warn(f"Prophet training failed: {e}, using fallback")
+            import traceback
+            error_msg = f"Prophet training failed: {e}\n{traceback.format_exc()}"
+            warnings.warn(error_msg)
+            print(f"[Prophet] Training failed: {e}")
+            print(f"[Prophet] Traceback: {traceback.format_exc()}")
             self._fallback_mean = float(data.mean())
             self._fallback_std = float(data.std())
             self._model = None

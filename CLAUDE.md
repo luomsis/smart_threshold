@@ -29,6 +29,11 @@ uv sync
 # 启动前端（另开终端）
 cd frontend && python3 -m http.server 3000
 
+# 或使用前端启动脚本
+./run_frontend.sh dev          # 开发模式（前台运行，端口 8011）
+./run_frontend.sh start        # 后台运行
+./run_frontend.sh stop         # 停止服务
+
 # 运行命令行演示
 python examples/demo.py
 ```
@@ -53,7 +58,7 @@ smart_threshold/
 │   └── js/
 │       ├── app.js             # 应用入口
 │       ├── api.js             # API 客户端
-│       └── components/        # dashboard.js, charts.js, models.js, datasources.js
+│       └── components/        # predict.js, charts.js, models.js, datasources.js, pipelines.js, jobs.js
 └── smart_threshold/           # 核心算法库
     ├── core/
     │   ├── feature_analyzer.py    # 特征提取（ACF, ADF, 稀疏度）
@@ -93,10 +98,12 @@ smart_threshold/
 - **Grafana 风格主题**: 深色 UI 设计
 
 **组件职责**：
-- `dashboard.js`: 数据查询、训练区间设置、模型对比
+- `predict.js`: 快速预测功能（无需 Pipeline）
 - `charts.js`: ECharts 封装，统一时间格式 `YYYY-MM-DD HH:mm:ss`
 - `models.js`: 模型列表、编辑（带 help 悬浮提示）
 - `datasources.js`: 数据源配置管理
+- `pipelines.js`: Pipeline 管理和任务配置
+- `jobs.js`: 任务状态监控
 - `helpers.js`: 工具函数（`formatChartDate`, `formatNumber` 等）
 
 ## 配置管理

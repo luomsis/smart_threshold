@@ -3,7 +3,7 @@
  */
 
 const Sidebar = {
-    currentPage: 'pipelines',
+    currentPage: 'predict',
 
     async init() {
         this.bindEvents();
@@ -47,7 +47,9 @@ const Sidebar = {
         this.currentPage = page;
 
         // Trigger page-specific init
-        if (page === 'models') {
+        if (page === 'predict') {
+            Predict.refresh();
+        } else if (page === 'models') {
             Models.refresh();
         } else if (page === 'datasources') {
             DataSources.refresh();

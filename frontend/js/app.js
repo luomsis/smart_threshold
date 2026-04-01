@@ -14,6 +14,7 @@ const App = {
         await Sidebar.init();
 
         // Initialize page-specific components
+        await Predict.init();
         await Models.init();
         await DataSources.init();
         await Pipelines.init();
@@ -33,8 +34,8 @@ const App = {
 
         console.log('SmartThreshold App initialized');
 
-        // Load initial page data
-        Pipelines.refresh();
+        // Load initial page data (default to Predict page)
+        Predict.refresh();
     },
 
     /**
@@ -61,7 +62,9 @@ const App = {
         Sidebar.currentPage = page;
 
         // Trigger page-specific init
-        if (page === 'models') {
+        if (page === 'predict') {
+            Predict.refresh();
+        } else if (page === 'models') {
             Models.refresh();
         } else if (page === 'datasources') {
             DataSources.refresh();

@@ -221,6 +221,13 @@ const API = {
         });
     },
 
+    /**
+     * Direct predict API (for quick prediction without pipeline)
+     */
+    async directPredict(params) {
+        return this.request('POST', '/predictions/direct', { body: params });
+    },
+
     // ==================== Health ====================
 
     /**

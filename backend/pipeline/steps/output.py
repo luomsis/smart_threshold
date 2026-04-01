@@ -28,28 +28,13 @@ def generate_output(
     Returns:
         Output dictionary with threshold arrays and preview data
     """
-    # Generate 24-hour threshold arrays (1440 minutes)
+    # Generate threshold arrays from prediction
     upper_bounds = prediction.yhat_upper.tolist()
     lower_bounds = prediction.yhat_lower.tolist()
     yhat = prediction.yhat.tolist()
 
-    # Ensure 1440 elements
-    target_length = 1440
-
-    if len(upper_bounds) < target_length:
-        # Extend with last value
-        last_upper = upper_bounds[-1] if upper_bounds else 0
-        last_lower = lower_bounds[-1] if lower_bounds else 0
-        last_yhat = yhat[-1] if yhat else 0
-
-        upper_bounds.extend([last_upper] * (target_length - len(upper_bounds)))
-        lower_bounds.extend([last_lower] * (target_length - len(lower_bounds)))
-        yhat.extend([last_yhat] * (target_length - len(yhat)))
-
-    elif len(upper_bounds) > target_length:
-        upper_bounds = upper_bounds[:target_length]
-        lower_bounds = lower_bounds[:target_length]
-        yhat = yhat[:target_length]
+    # Use actual prediction length
+    target_length = len(yhat)
 
     # Generate timestamps for preview
     now = datetime.now()
@@ -58,12 +43,13 @@ def generate_output(
         for i in range(target_length)
     ]
 
-    # Create preview data for ECharts
+    # Create preview data for ECharts (first 8 hours or all if less)
+    preview_hours = min(480, target_length)  # 480 points = 8 hours at 1min interval
     preview_data = {
-        "timestamps": timestamps,
-        "predicted": yhat[:480] if len(yhat) > 480 else yhat,  # First 8 hours for preview
-        "upper": upper_bounds[:480] if len(upper_bounds) > 480 else upper_bounds,
-        "lower": lower_bounds[:480] if len(lower_bounds) > 480 else lower_bounds,
+        "timestamps": timestamps[:preview_hours],
+        "predicted": yhat[:preview_hours],
+        "upper": upper_bounds[:preview_hours],
+        "lower": lower_bounds[:preview_hours],
     }
 
     # Build output

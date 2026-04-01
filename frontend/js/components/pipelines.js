@@ -280,6 +280,14 @@ const Pipelines = {
                 trainEndInput.value = Helpers.formatDateOnly(new Date(pipeline.train_end));
             }
         }
+
+        // Set predict periods
+        if (pipeline.predict_periods) {
+            const predictPeriodsSelect = document.getElementById('edit-pipeline-predict-periods');
+            if (predictPeriodsSelect) {
+                predictPeriodsSelect.value = String(pipeline.predict_periods);
+            }
+        }
     },
 
     clearForm() {
@@ -290,6 +298,7 @@ const Pipelines = {
         document.getElementById('edit-pipeline-model-params-section').style.display = 'none';
         document.getElementById('edit-pipeline-train-start').value = '';
         document.getElementById('edit-pipeline-train-end').value = '';
+        document.getElementById('edit-pipeline-predict-periods').value = '1440';
 
         // Hide preview panels
         document.getElementById('edit-pipeline-stats-panel').style.display = 'none';
@@ -540,13 +549,12 @@ const Pipelines = {
         document.getElementById('edit-pipeline-stat-mean').textContent = Helpers.formatNumber(values.reduce((a, b) => a + b, 0) / values.length);
         document.getElementById('edit-pipeline-stats-panel').style.display = 'block';
 
-        // Auto set train range (80% of data) if not already set
+        // Auto set train range to full query range if not already set
         const trainStartInput = document.getElementById('edit-pipeline-train-start');
         const trainEndInput = document.getElementById('edit-pipeline-train-end');
         if (data.timestamps.length > 0 && (!trainStartInput.value || !trainEndInput.value)) {
-            const splitIdx = Math.floor(data.timestamps.length * 0.8);
             const startDate = new Date(data.timestamps[0]);
-            const endDate = new Date(data.timestamps[splitIdx]);
+            const endDate = new Date(data.timestamps[data.timestamps.length - 1]);
             trainStartInput.value = Helpers.formatDateOnly(startDate);
             trainEndInput.value = Helpers.formatDateOnly(endDate);
         }
@@ -564,6 +572,12 @@ const Pipelines = {
                 trainStart: trainStart,
                 trainEnd: trainEnd,
             });
+
+            // Resize chart after container is visible
+            setTimeout(() => {
+                const chart = Charts.getChart('edit-pipeline-main-chart');
+                if (chart) chart.resize();
+            }, 50);
         }
 
         document.getElementById('edit-pipeline-training-panel').style.display = 'block';
@@ -583,6 +597,12 @@ const Pipelines = {
             trainStart: trainStart,
             trainEnd: trainEnd,
         });
+
+        // Resize chart
+        setTimeout(() => {
+            const chart = Charts.getChart('edit-pipeline-main-chart');
+            if (chart) chart.resize();
+        }, 50);
     },
 
     bindTooltipEvents() {
@@ -631,6 +651,10 @@ const Pipelines = {
             ? new Date(trainEndInput.value + 'T23:59:59').toISOString()
             : null;
 
+        // Get predict periods
+        const predictPeriodsSelect = document.getElementById('edit-pipeline-predict-periods');
+        const predictPeriods = predictPeriodsSelect ? parseInt(predictPeriodsSelect.value) : 1440;
+
         const data = {
             name: document.getElementById('edit-pipeline-name').value,
             description: document.getElementById('edit-pipeline-desc').value,
@@ -642,6 +666,7 @@ const Pipelines = {
             train_start: trainStart,
             train_end: trainEnd,
             step: this.dataQuery.getStep(),
+            predict_periods: predictPeriods,
             enabled: true,
             schedule_type: 'manual',
             labels: {},
@@ -1153,6 +1178,9 @@ const Pipelines = {
         chartOptions.grid.top = '15%';
 
         chart.setOption(chartOptions, true);
+
+        // Resize chart after render
+        setTimeout(() => chart.resize(), 50);
     },
 
     async cancelJob(jobId) {

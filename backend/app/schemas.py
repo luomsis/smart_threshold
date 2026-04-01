@@ -333,6 +333,7 @@ class PipelineCreate(BaseModel):
     train_start: datetime = Field(..., description="Training start time")
     train_end: datetime = Field(..., description="Training end time")
     step: str = Field("1m", description="Query step")
+    predict_periods: int = Field(1440, description="预测点数，默认 1440 (24小时)")
 
     # Algorithm configuration - two ways to specify:
     # Option 1 (deprecated): Direct algorithm and params
@@ -361,6 +362,7 @@ class PipelineUpdate(BaseModel):
     train_start: Optional[datetime] = None
     train_end: Optional[datetime] = None
     step: Optional[str] = None
+    predict_periods: Optional[int] = None
     algorithm: Optional[str] = None
     algorithm_params: Optional[Dict[str, Any]] = None
     model_id: Optional[str] = None
@@ -393,6 +395,7 @@ class PipelineResponse(BaseModel):
     train_start: datetime
     train_end: datetime
     step: str
+    predict_periods: int = Field(1440, description="预测点数")
     # Algorithm configuration (old fields - deprecated)
     algorithm: str
     algorithm_params: Dict[str, Any]
@@ -532,3 +535,53 @@ class CheckResponse(BaseModel):
     severity: str = Field(..., description="异常严重程度: normal/warning/critical")
     threshold_used: Dict[str, float] = Field(..., description="使用的阈值: {upper, lower}")
     deviation_percent: Optional[float] = Field(None, description="偏离百分比")
+
+
+# ==================== Direct Predict Schemas ====================
+
+class OriginalDataPoint(BaseModel):
+    """原始数据点"""
+    timestamp: datetime = Field(..., description="时间戳")
+    value: float = Field(..., description="值")
+
+
+class PredictedDataPoint(BaseModel):
+    """预测数据点"""
+    timestamp: datetime = Field(..., description="时间戳")
+    yhat: float = Field(..., description="预测值")
+    yhat_upper: float = Field(..., description="预测上限")
+    yhat_lower: float = Field(..., description="预测下限")
+
+
+class DirectPredictRequest(BaseModel):
+    """直接预测请求"""
+    datasource_id: str = Field(..., description="数据源 ID")
+    metric_id: str = Field(..., description="指标名/查询语句")
+    endpoint: Optional[str] = Field(None, description="Endpoint 过滤")
+    labels: Dict[str, str] = Field(default_factory=dict, description="标签过滤")
+    train_start: datetime = Field(..., description="训练开始时间")
+    train_end: datetime = Field(..., description="训练结束时间")
+    step: str = Field("1m", description="采样间隔")
+    model_id: str = Field(..., description="模型配置 ID")
+    override_params: Optional[Dict[str, Any]] = Field(None, description="覆盖参数")
+    predict_periods: Optional[int] = Field(None, description="预测点数，默认根据 step 计算 24 小时")
+    predict_end: Optional[datetime] = Field(None, description="预测结束时间，优先于 predict_periods")
+    exclude_periods: List[ExcludePeriod] = Field(default_factory=list, description="排除时间段")
+    outlier_detection: Optional[OutlierDetection] = Field(None, description="异常点检测配置")
+    smoothing: Optional[SmoothingConfig] = Field(None, description="数据平滑配置")
+
+
+class DirectPredictResponse(BaseModel):
+    """直接预测响应"""
+    metric_id: str = Field(..., description="指标名")
+    model_id: str = Field(..., description="模型配置 ID")
+    algorithm: str = Field(..., description="使用的算法")
+    train_start: datetime = Field(..., description="训练开始时间")
+    train_end: datetime = Field(..., description="训练结束时间")
+    train_points: int = Field(..., description="训练数据点数")
+    predict_points: int = Field(..., description="预测数据点数")
+    original_data: List[OriginalDataPoint] = Field(..., description="原始数据")
+    predicted_data: List[PredictedDataPoint] = Field(..., description="预测数据")
+    train_stats: Dict[str, Any] = Field(default_factory=dict, description="训练统计")
+    validation_metrics: Dict[str, Any] = Field(default_factory=dict, description="验证指标")
+    execution_time: float = Field(..., description="执行时间(秒)")

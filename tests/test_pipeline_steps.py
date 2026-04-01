@@ -257,11 +257,11 @@ class TestOutputStep:
         assert len(output["upper_bounds"]) == 1440
         assert len(output["lower_bounds"]) == 1440
 
-    def test_generate_output_extends_short_prediction(self):
-        """Should extend prediction if shorter than 1440."""
+    def test_generate_output_uses_prediction_length(self):
+        """Should use actual prediction length instead of forcing 1440."""
         timestamps = pd.date_range(
             start="2024-01-01",
-            periods=100,  # Shorter than 1440
+            periods=100,
             freq="1min"
         ).tolist()
         prediction = AlgorithmResult(
@@ -278,8 +278,10 @@ class TestOutputStep:
             validation_metrics={},
         )
 
-        assert len(output["upper_bounds"]) == 1440
-        assert len(output["lower_bounds"]) == 1440
+        # Should preserve actual prediction length
+        assert len(output["upper_bounds"]) == 100
+        assert len(output["lower_bounds"]) == 100
+        assert len(output["predicted"]) == 100
 
     def test_format_for_echarts(self):
         """Should format data for ECharts."""

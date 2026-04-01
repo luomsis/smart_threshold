@@ -38,6 +38,9 @@ class Pipeline(Base):
     train_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     step: Mapped[str] = mapped_column(String(10), default="1m")
 
+    # Prediction configuration
+    predict_periods: Mapped[int] = mapped_column(default=1440)  # 预测点数，默认 1440 (24小时)
+
     # Algorithm configuration (old fields - deprecated but kept for backward compatibility)
     algorithm: Mapped[str] = mapped_column(String(50), nullable=False)
     algorithm_params: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)

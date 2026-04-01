@@ -107,8 +107,8 @@ python3 -m http.server 3000
 
 访问应用：
 - 前端界面：http://localhost:3000
-- 后端 API：http://localhost:8000
-- API 文档：http://localhost:8000/api/docs
+- 后端 API：http://localhost:8010
+- API 文档：http://localhost:8010/api/docs
 
 ### 方式二：命令行演示
 
@@ -194,10 +194,12 @@ smart_threshold/
 │   │   ├── api.js             # API 客户端
 │   │   ├── app.js             # 应用入口
 │   │   └── components/        # 组件
-│   │       ├── dashboard.js   # 仪表盘（模型对比）
+│   │       ├── predict.js     # 快速预测
 │   │       ├── charts.js      # 图表组件
 │   │       ├── models.js      # 模型管理
-│   │       └── datasources.js # 数据源管理
+│   │       ├── datasources.js # 数据源管理
+│   │       ├── pipelines.js   # Pipeline 管理
+│   │       └── jobs.js        # 任务管理
 │   └── static/                # 静态资源
 │       └── echarts.min.js     # ECharts 图表库
 ├── smart_threshold/           # 核心算法库
@@ -262,7 +264,7 @@ python3 -m http.server 3000
 
 ## API 接口
 
-后端提供 RESTful API，启动后访问 http://localhost:8000/api/docs 查看完整文档。
+后端提供 RESTful API，启动后访问 http://localhost:8010/api/docs 查看完整文档。
 
 ### 主要接口
 
@@ -281,7 +283,7 @@ python3 -m http.server 3000
 ### 模型对比示例
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/predictions/compare \
+curl -X POST http://localhost:8010/api/v1/predictions/compare \
   -H "Content-Type: application/json" \
   -d '{
     "model_ids": ["prophet_default", "welford_default"],

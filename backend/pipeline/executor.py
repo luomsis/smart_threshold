@@ -262,10 +262,16 @@ class PipelineExecutor:
 
         self._log(f"Training model with algorithm: {algorithm}")
 
+        # Get predict_periods from pipeline config
+        predict_periods = getattr(self.pipeline, 'predict_periods', 1440) or 1440
+        self._log(f"Predicting {predict_periods} periods with step {self.pipeline.step}")
+
         self._model, self._prediction, error = train_model(
             data=self._cleaned_data,
             algorithm=algorithm,
             algorithm_params=algorithm_params,
+            periods=predict_periods,
+            step=self.pipeline.step,
         )
 
         if error:

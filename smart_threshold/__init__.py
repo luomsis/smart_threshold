@@ -12,11 +12,11 @@ from smart_threshold.core.feature_analyzer import FeatureExtractor, FeatureResul
 from smart_threshold.core.model_router import ModelRouter, AlgorithmType
 from smart_threshold.core.param_optimizer import ParamOptimizer, OptimizationResult
 
+# 向后兼容别名
+BacktestOptimizer = ParamOptimizer
+
 # 配置管理
 from smart_threshold.config import ConfigManager
-
-# 向后兼容别名
-from smart_threshold.core.param_optimizer import ParamOptimizer as BacktestOptimizer
 
 __all__ = [
     # 核心功能
