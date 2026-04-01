@@ -10,13 +10,6 @@ from enum import Enum
 
 # ==================== Enums ====================
 
-class DataSourceType(str, Enum):
-    """数据源类型"""
-    PROMETHEUS = "prometheus"
-    INFLUXDB = "influxdb"
-    TIMESCALEDB = "timescaledb"
-
-
 class ModelType(str, Enum):
     """模型类型"""
     PROPHET = "prophet"
@@ -30,53 +23,7 @@ class TemplateCategory(str, Enum):
     CUSTOM = "custom"
 
 
-# ==================== Data Source Schemas ====================
-
-class DataSourceConfigBase(BaseModel):
-    """数据源配置基类"""
-    name: str = Field(..., description="数据源名称")
-    source_type: DataSourceType = Field(..., description="数据源类型")
-    url: str = Field(..., description="数据源URL")
-    enabled: bool = Field(True, description="是否启用")
-    auth_token: Optional[str] = Field(None, description="认证令牌")
-    headers: Dict[str, str] = Field(default_factory=dict, description="请求头")
-    default_timeout: int = Field(30, description="默认超时时间")
-    # TimescaleDB 特定配置
-    db_host: str = Field("localhost", description="数据库主机")
-    db_port: int = Field(5432, description="数据库端口")
-    db_name: str = Field("postgres", description="数据库名称")
-    db_user: str = Field("postgres", description="数据库用户")
-    db_password: str = Field("", description="数据库密码")
-
-
-class DataSourceConfigCreate(DataSourceConfigBase):
-    """创建数据源配置"""
-    pass
-
-
-class DataSourceConfigUpdate(BaseModel):
-    """更新数据源配置"""
-    name: Optional[str] = None
-    source_type: Optional[DataSourceType] = None
-    url: Optional[str] = None
-    enabled: Optional[bool] = None
-    auth_token: Optional[str] = None
-    headers: Optional[Dict[str, str]] = None
-    default_timeout: Optional[int] = None
-    db_host: Optional[str] = None
-    db_port: Optional[int] = None
-    db_name: Optional[str] = None
-    db_user: Optional[str] = None
-    db_password: Optional[str] = None
-
-
-class DataSourceConfigResponse(DataSourceConfigBase):
-    """数据源配置响应"""
-    id: str = Field(..., description="数据源ID")
-
-    class Config:
-        from_attributes = True
-
+# ==================== Time Range Schemas ====================
 
 class TimeRange(BaseModel):
     """时间范围"""
@@ -325,8 +272,8 @@ class PipelineCreate(BaseModel):
     """Create pipeline request"""
     name: str = Field(..., description="Pipeline name")
     description: str = Field("", description="Description")
+    datasource_id: str = Field("default", description="Datasource ID")
     metric_id: str = Field(..., description="Metric identifier")
-    datasource_id: str = Field(..., description="Data source ID")
     endpoint: Optional[str] = Field(None, description="Endpoint filter")
     labels: Dict[str, str] = Field(default_factory=dict, description="Label filters")
 
@@ -355,8 +302,8 @@ class PipelineUpdate(BaseModel):
     """Update pipeline request"""
     name: Optional[str] = None
     description: Optional[str] = None
-    metric_id: Optional[str] = None
     datasource_id: Optional[str] = None
+    metric_id: Optional[str] = None
     endpoint: Optional[str] = None
     labels: Optional[Dict[str, str]] = None
     train_start: Optional[datetime] = None
@@ -387,9 +334,8 @@ class PipelineResponse(BaseModel):
     id: str = Field(..., description="Pipeline ID")
     name: str
     description: str
+    datasource_id: str = Field("default", description="Datasource ID")
     metric_id: str
-    datasource_id: str
-    datasource_name: Optional[str] = Field(None, description="Data source name")
     endpoint: Optional[str]
     labels: Dict[str, str]
     train_start: datetime
@@ -434,9 +380,15 @@ class JobResponse(BaseModel):
     false_alerts: Optional[int]
 
     # Results
-    preview_data: Optional[Dict[str, Any]]
-    upper_bounds: Optional[List[float]]
-    lower_bounds: Optional[List[float]]
+    preview_data: Optional[Dict[str, Any]] = Field(
+        None,
+        description="预览数据，用于 ECharts 图表展示。包含: "
+        "timestamps(预测时间戳列表)、predicted(预测值)、upper(上限)、lower(下限)、"
+        "train_timestamps(训练数据时间戳)、train_values(训练数据值)、"
+        "validation_metrics(验证指标)、train_stats(训练统计)"
+    )
+    upper_bounds: Optional[List[float]] = Field(None, description="阈值上限数组（完整预测周期）")
+    lower_bounds: Optional[List[float]] = Field(None, description="阈值下限数组（完整预测周期）")
 
     # Error info
     error_message: Optional[str]
@@ -555,7 +507,6 @@ class PredictedDataPoint(BaseModel):
 
 class DirectPredictRequest(BaseModel):
     """直接预测请求"""
-    datasource_id: str = Field(..., description="数据源 ID")
     metric_id: str = Field(..., description="指标名/查询语句")
     endpoint: Optional[str] = Field(None, description="Endpoint 过滤")
     labels: Dict[str, str] = Field(default_factory=dict, description="标签过滤")
