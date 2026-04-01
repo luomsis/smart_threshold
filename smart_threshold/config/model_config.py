@@ -223,7 +223,7 @@ class ModelConfigManager:
         for config in self.DEFAULT_CONFIGS:
             self._configs[config.id] = config
 
-        # 然后加载用户自定义配置
+        # 然后加载保存的配置文件（覆盖默认值）
         if self.config_file.exists():
             try:
                 with open(self.config_file, "r", encoding="utf-8") as f:
@@ -231,9 +231,8 @@ class ModelConfigManager:
 
                 for config_data in data:
                     config = ModelConfig.from_dict(config_data)
-                    # 只添加自定义配置，系统预设配置不会被覆盖
-                    if config.category == TemplateCategory.CUSTOM:
-                        self._configs[config.id] = config
+                    # 覆盖默认配置（包括系统预设的修改）
+                    self._configs[config.id] = config
 
             except Exception as e:
                 print(f"加载配置文件失败: {e}")
@@ -322,13 +321,22 @@ class ModelConfigManager:
         if not config:
             return False
 
-        # 系统预设配置不允许直接更新，需要另存为新的配置
-        if config.category == TemplateCategory.SYSTEM:
-            return False
-
         config.update_params(updates)
-        self._save_custom_configs()
+        config.updated_at = datetime.now().isoformat()
+
+        # 保存配置（系统预设保存到配置文件，下次加载时会覆盖默认值）
+        self._save_all_configs()
         return True
+
+    def _save_all_configs(self) -> None:
+        """保存所有配置（包括系统预设的修改）"""
+        all_configs = [
+            config.to_dict()
+            for config in self._configs.values()
+        ]
+
+        with open(self.config_file, "w", encoding="utf-8") as f:
+            json.dump(all_configs, f, indent=2, ensure_ascii=False)
 
     def delete_config(self, config_id: str) -> bool:
         """

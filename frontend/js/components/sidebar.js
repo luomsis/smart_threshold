@@ -7,7 +7,6 @@ const Sidebar = {
 
     async init() {
         this.bindEvents();
-        await this.loadDefaultDataSource();
     },
 
     bindEvents() {
@@ -18,17 +17,6 @@ const Sidebar = {
                 this.navigateTo(page);
             });
         });
-    },
-
-    async loadDefaultDataSource() {
-        try {
-            const defaultDs = await API.getDefaultDataSource();
-            if (defaultDs) {
-                this.updateCurrentDataSource(defaultDs.name);
-            }
-        } catch (e) {
-            // No default data source
-        }
     },
 
     navigateTo(page) {
@@ -51,8 +39,6 @@ const Sidebar = {
             Predict.refresh();
         } else if (page === 'models') {
             Models.refresh();
-        } else if (page === 'datasources') {
-            DataSources.refresh();
         } else if (page === 'pipelines') {
             Pipelines.refresh();
         } else if (page === 'jobs') {
@@ -121,13 +107,6 @@ const Sidebar = {
         });
 
         this.currentPage = 'job-status';
-    },
-
-    updateCurrentDataSource(name) {
-        const el = document.getElementById('current-datasource');
-        if (el) {
-            el.textContent = name;
-        }
     },
 };
 

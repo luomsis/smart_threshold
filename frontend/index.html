@@ -36,18 +36,8 @@
                         <span class="nav-icon">🤖</span>
                         <span class="nav-text">模型管理</span>
                     </li>
-                    <li class="nav-item" data-page="datasources">
-                        <span class="nav-icon">🔌</span>
-                        <span class="nav-text">数据源</span>
-                    </li>
                 </ul>
             </nav>
-            <div class="sidebar-footer">
-                <div class="datasource-info">
-                    <span class="label">默认数据源</span>
-                    <span class="value" id="current-datasource">未配置</span>
-                </div>
-            </div>
         </aside>
 
         <!-- Main Content -->
@@ -63,12 +53,6 @@
                     <h4>数据配置</h4>
                     <div class="panel-body">
                         <div class="form-row">
-                            <div class="form-group">
-                                <label for="predict-datasource">数据源</label>
-                                <select id="predict-datasource" class="form-control">
-                                    <option value="">请选择数据源...</option>
-                                </select>
-                            </div>
                             <div class="form-group">
                                 <label for="predict-endpoint">Endpoint</label>
                                 <select id="predict-endpoint" class="form-control">
@@ -264,19 +248,6 @@
                 </div>
             </div>
 
-            <!-- DataSources Page -->
-            <div id="page-datasources" class="page">
-                <div class="page-header">
-                    <h2 class="page-title">数据源管理</h2>
-                    <div class="page-actions">
-                        <button class="btn btn-primary" id="btn-add-datasource">
-                            <span>+</span> 添加数据源
-                        </button>
-                    </div>
-                </div>
-                <div class="datasources-list" id="datasources-list"></div>
-            </div>
-
             <!-- Pipelines Page -->
             <div id="page-pipelines" class="page">
                 <div class="page-header">
@@ -380,12 +351,6 @@
                         <h4>数据配置</h4>
                         <div class="panel-body">
                             <div class="form-row">
-                                <div class="form-group">
-                                    <label for="edit-pipeline-datasource">数据源</label>
-                                    <select id="edit-pipeline-datasource" class="form-control">
-                                        <option value="">请选择数据源...</option>
-                                    </select>
-                                </div>
                                 <div class="form-group">
                                     <label for="edit-pipeline-endpoint">Endpoint</label>
                                     <select id="edit-pipeline-endpoint" class="form-control">
@@ -540,7 +505,6 @@
     <script src="js/components/data-query.js"></script>
     <script src="js/components/predict.js"></script>
     <script src="js/components/models.js"></script>
-    <script src="js/components/datasources.js"></script>
     <script src="js/components/pipelines.js"></script>
     <script src="js/components/jobs.js"></script>
     <script src="js/app.js"></script>

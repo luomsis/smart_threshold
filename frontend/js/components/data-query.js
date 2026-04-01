@@ -5,8 +5,6 @@
 const DataQuery = {
     // State
     state: {
-        dataSources: [],
-        currentDataSource: null,
         endpoints: [],
         metrics: [],
         queryData: null,
@@ -25,7 +23,7 @@ const DataQuery = {
     init(prefix = '') {
         this.prefix = prefix;
         this.bindEvents();
-        return this.loadDataSources();
+        return this.loadData();
     },
 
     /**
@@ -46,12 +44,6 @@ const DataQuery = {
      * Bind event listeners
      */
     bindEvents() {
-        // Datasource selection
-        const dsSelect = this.getElement('datasource');
-        if (dsSelect) {
-            dsSelect.addEventListener('change', (e) => this.onDatasourceChange(e.target.value));
-        }
-
         // Endpoint selection
         const endpointSelect = this.getElement('endpoint');
         if (endpointSelect) {
@@ -88,93 +80,26 @@ const DataQuery = {
     },
 
     /**
-     * Load data sources and populate datasource dropdown
+     * Load initial data (endpoints, metrics, time range)
      */
-    async loadDataSources() {
+    async loadData() {
         try {
-            const dataSources = await API.listDataSources();
-            this.state.dataSources = dataSources;
+            // Load time range
+            await this.loadDataTimeRange();
 
-            const dsSelect = this.getElement('datasource');
-            if (!dsSelect) return;
-
-            dsSelect.innerHTML = '<option value="">请选择数据源...</option>';
-
-            dataSources.forEach(ds => {
-                const option = document.createElement('option');
-                option.value = ds.id;
-                option.textContent = ds.name;
-                dsSelect.appendChild(option);
-            });
-
-            // Try to get default data source
-            try {
-                const defaultDs = await API.getDefaultDataSource();
-                if (defaultDs) {
-                    dsSelect.value = defaultDs.id;
-                    await this.onDatasourceChange(defaultDs.id);
-                }
-            } catch (e) {
-                // No default data source
-            }
+            // Load endpoints
+            await this.loadEndpoints();
         } catch (error) {
-            Helpers.showToast('加载数据源失败: ' + error.message, 'error');
+            Helpers.showToast('加载数据失败: ' + error.message, 'error');
         }
     },
 
     /**
-     * Handle datasource change
-     */
-    async onDatasourceChange(dsId) {
-        if (!dsId) {
-            this.state.currentDataSource = null;
-            const endpointSelect = this.getElement('endpoint');
-            const metricSelect = this.getElement('metric');
-            if (endpointSelect) endpointSelect.innerHTML = '<option value="">请选择 Endpoint...</option>';
-            if (metricSelect) metricSelect.innerHTML = '<option value="">请选择指标...</option>';
-            // Call callback if defined
-            if (this.onDatasourceChangeCallback) {
-                this.onDatasourceChangeCallback(null);
-            }
-            return;
-        }
-
-        const ds = this.state.dataSources.find(d => d.id === dsId);
-        if (!ds) {
-            Helpers.showToast('数据源不存在', 'error');
-            return;
-        }
-
-        this.state.currentDataSource = ds;
-
-        // Call callback if defined (for updating sidebar, etc.)
-        if (this.onDatasourceChangeCallback) {
-            this.onDatasourceChangeCallback(ds);
-        }
-
-        // Reset state
-        this.state.queryData = null;
-        this.state.endpoints = [];
-        this.state.metrics = [];
-        this.state.trainStart = null;
-        this.state.trainEnd = null;
-        this.state.dataTimeRange = null;
-
-        // Load time range for this datasource
-        await this.loadDataTimeRange();
-
-        // Load endpoints for this datasource
-        await this.loadEndpoints();
-    },
-
-    /**
-     * Load data time range from data source
+     * Load data time range from global TimescaleDB
      */
     async loadDataTimeRange(endpoint = null) {
-        if (!this.state.currentDataSource) return;
-
         try {
-            const timeRange = await API.getTimeRange(this.state.currentDataSource.id, endpoint);
+            const timeRange = await API.getTimeRange(endpoint);
             this.state.dataTimeRange = timeRange;
         } catch (e) {
             this.state.dataTimeRange = null;
@@ -200,8 +125,6 @@ const DataQuery = {
      * Load endpoints (endpoint label values)
      */
     async loadEndpoints() {
-        if (!this.state.currentDataSource) return;
-
         const select = this.getElement('endpoint');
         if (!select) {
             // No endpoint select, load metrics directly
@@ -213,7 +136,7 @@ const DataQuery = {
         select.disabled = false;
 
         try {
-            const result = await API.listEndpoints(this.state.currentDataSource.id);
+            const result = await API.listEndpoints();
             this.state.endpoints = result.values || [];
 
             this.state.endpoints.forEach(endpoint => {
@@ -272,13 +195,11 @@ const DataQuery = {
     },
 
     /**
-     * Load metrics for current data source/endpoint
+     * Load metrics for current endpoint
      */
     async loadMetrics() {
-        if (!this.state.currentDataSource) return;
-
         try {
-            const metrics = await API.listMetrics(this.state.currentDataSource.id);
+            const metrics = await API.listMetrics();
             this.state.metrics = metrics;
 
             const select = this.getElement('metric');
@@ -318,11 +239,6 @@ const DataQuery = {
             return;
         }
 
-        if (!this.state.currentDataSource) {
-            Helpers.showToast('请选择数据源', 'error');
-            return;
-        }
-
         // Get period and step from dropdowns
         const periodSelect = this.getElement('period');
         const stepSelect = this.getElement('step');
@@ -338,7 +254,7 @@ const DataQuery = {
         Helpers.showLoading(true, '正在查询数据...');
 
         try {
-            const result = await API.queryData(this.state.currentDataSource.id, metric, {
+            const result = await API.queryData(metric, {
                 start: start.toISOString(),
                 end: end.toISOString(),
                 step,
@@ -372,15 +288,14 @@ const DataQuery = {
     },
 
     /**
-     * Auto set training range (80% of data)
+     * Auto set training range (full data range)
      */
     autoTrainRange() {
         const data = this.state.queryData;
         if (!data || data.timestamps.length === 0) return;
 
-        const splitIdx = Math.floor(data.timestamps.length * 0.8);
         const startDate = new Date(data.timestamps[0]);
-        const endDate = new Date(data.timestamps[splitIdx]);
+        const endDate = new Date(data.timestamps[data.timestamps.length - 1]);
 
         // Update state
         this.state.trainStart = startDate.toISOString();
@@ -431,13 +346,6 @@ const DataQuery = {
     },
 
     /**
-     * Get current data source ID
-     */
-    getDataSourceId() {
-        return this.state.currentDataSource ? this.state.currentDataSource.id : null;
-    },
-
-    /**
      * Get current metric
      */
     getMetric() {
@@ -479,17 +387,6 @@ const DataQuery = {
     },
 
     /**
-     * Set data source programmatically (for editing existing config)
-     */
-    async setDataSource(dsId) {
-        const dsSelect = this.getElement('datasource');
-        if (dsSelect) {
-            dsSelect.value = dsId;
-        }
-        await this.onDatasourceChange(dsId);
-    },
-
-    /**
      * Set endpoint programmatically
      */
     async setEndpoint(endpoint) {
@@ -515,8 +412,6 @@ const DataQuery = {
      */
     reset() {
         this.state = {
-            dataSources: [],
-            currentDataSource: null,
             endpoints: [],
             metrics: [],
             queryData: null,

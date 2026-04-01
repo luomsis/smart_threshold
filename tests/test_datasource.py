@@ -1,7 +1,7 @@
 """
 Datasource 客户端单元测试
 
-测试 PrometheusDataSource 和 TimescaleDBDataSource 的功能。
+测试 TimescaleDBDataSource 的功能。
 """
 
 import pytest
@@ -16,10 +16,7 @@ from smart_threshold.datasource.models import (
     LabelValues,
     QueryResult,
 )
-from smart_threshold.datasource.prometheus_client import (
-    PrometheusDataSource,
-    create_datasource,
-)
+from smart_threshold.datasource.timescaledb_client import TimescaleDBDataSource
 
 
 class TestDataSourceConfig:
@@ -29,8 +26,8 @@ class TestDataSourceConfig:
         """测试默认配置值"""
         config = DataSourceConfig(
             name="test",
-            source_type=DataSourceType.PROMETHEUS,
-            url="http://localhost:9090"
+            source_type=DataSourceType.TIMESCALEDB,
+            url="postgresql://localhost:5432/postgres"
         )
         assert config.enabled is True
         assert config.default_timeout == 30
@@ -43,148 +40,53 @@ class TestDataSourceConfig:
     def test_config_custom_values(self):
         """测试自定义配置值"""
         config = DataSourceConfig(
-            name="test-prometheus",
-            source_type=DataSourceType.PROMETHEUS,
-            url="http://prometheus:9090",
+            name="test-timescaledb",
+            source_type=DataSourceType.TIMESCALEDB,
+            url="postgresql://timescaledb:5432/metrics",
             enabled=False,
-            auth_token="test-token",
-            headers={"X-Custom": "value"},
+            db_host="timescaledb",
+            db_port=5432,
+            db_name="metrics",
+            db_user="admin",
+            db_password="secret",
             default_timeout=60
         )
-        assert config.name == "test-prometheus"
-        assert config.source_type == DataSourceType.PROMETHEUS
-        assert config.url == "http://prometheus:9090"
+        assert config.name == "test-timescaledb"
+        assert config.source_type == DataSourceType.TIMESCALEDB
+        assert config.url == "postgresql://timescaledb:5432/metrics"
         assert config.enabled is False
-        assert config.auth_token == "test-token"
-        assert config.headers == {"X-Custom": "value"}
         assert config.default_timeout == 60
 
 
-class TestPrometheusDataSource:
-    """Prometheus 数据源测试"""
+class TestTimescaleDBDataSource:
+    """TimescaleDB 数据源测试"""
 
     @pytest.fixture
-    def prometheus_config(self):
-        """创建 Prometheus 配置"""
+    def timescaledb_config(self):
+        """创建 TimescaleDB 配置"""
         return DataSourceConfig(
-            name="prometheus-test",
-            source_type=DataSourceType.PROMETHEUS,
-            url="http://localhost:9090"
-        )
-
-    def test_init(self, prometheus_config):
-        """测试初始化"""
-        client = PrometheusDataSource(prometheus_config)
-        assert client.config == prometheus_config
-        assert client.session is not None
-
-    def test_init_with_auth_token(self):
-        """测试带认证令牌的初始化"""
-        config = DataSourceConfig(
-            name="prometheus-auth",
-            source_type=DataSourceType.PROMETHEUS,
-            url="http://localhost:9090",
-            auth_token="my-token"
-        )
-        client = PrometheusDataSource(config)
-        assert "Authorization" in client.session.headers
-        assert client.session.headers["Authorization"] == "Bearer my-token"
-
-    @patch('requests.Session.get')
-    def test_list_metrics(self, mock_get, prometheus_config):
-        """测试列出指标（Mock HTTP 响应）"""
-        mock_response = Mock()
-        mock_response.json.return_value = {
-            "status": "success",
-            "data": ["up", "cpu_usage", "memory_usage"]
-        }
-        mock_response.raise_for_status = Mock()
-        mock_get.return_value = mock_response
-
-        client = PrometheusDataSource(prometheus_config)
-        metrics = client.list_metrics()
-
-        assert len(metrics) == 3
-        assert metrics[0].name == "up"
-        assert metrics[1].name == "cpu_usage"
-
-    @patch('requests.Session.get')
-    def test_get_endpoints(self, mock_get, prometheus_config):
-        """测试获取 endpoint 列表"""
-        mock_response = Mock()
-        mock_response.json.return_value = {
-            "status": "success",
-            "data": ["/api/v1/query", "/metrics", "/health"]
-        }
-        mock_response.raise_for_status = Mock()
-        mock_get.return_value = mock_response
-
-        client = PrometheusDataSource(prometheus_config)
-        endpoints = client.get_endpoints()
-
-        assert len(endpoints) == 3
-        assert "/api/v1/query" in endpoints
-
-    @patch('requests.Session.get')
-    def test_list_label_names(self, mock_get, prometheus_config):
-        """测试列出标签名称"""
-        mock_response = Mock()
-        mock_response.json.return_value = {
-            "status": "success",
-            "data": ["instance", "job", "endpoint"]
-        }
-        mock_response.raise_for_status = Mock()
-        mock_get.return_value = mock_response
-
-        client = PrometheusDataSource(prometheus_config)
-        labels = client.list_label_names()
-
-        assert len(labels) == 3
-        assert "instance" in labels
-
-    @patch('requests.Session.get')
-    def test_get_label_values(self, mock_get, prometheus_config):
-        """测试获取标签值"""
-        mock_response = Mock()
-        mock_response.json.return_value = {
-            "status": "success",
-            "data": ["server1", "server2", "server3"]
-        }
-        mock_response.raise_for_status = Mock()
-        mock_get.return_value = mock_response
-
-        client = PrometheusDataSource(prometheus_config)
-        result = client.get_label_values("instance")
-
-        assert isinstance(result, LabelValues)
-        assert result.label == "instance"
-        assert len(result.values) == 3
-
-
-class TestCreateDatasource:
-    """数据源工厂函数测试"""
-
-    def test_create_prometheus_datasource(self):
-        """测试创建 Prometheus 数据源"""
-        config = DataSourceConfig(
-            name="prometheus",
-            source_type=DataSourceType.PROMETHEUS,
-            url="http://localhost:9090"
-        )
-        ds = create_datasource(config)
-        assert isinstance(ds, PrometheusDataSource)
-
-    def test_create_timescaledb_datasource(self):
-        """测试创建 TimescaleDB 数据源"""
-        config = DataSourceConfig(
-            name="timescaledb",
+            name="timescaledb-test",
             source_type=DataSourceType.TIMESCALEDB,
-            url="postgresql://localhost:5432/test"
+            url="postgresql://localhost:5432/postgres",
+            db_host="localhost",
+            db_port=5432,
+            db_name="postgres",
+            db_user="postgres",
+            db_password="postgres"
         )
-        ds = create_datasource(config)
-        # TimescaleDB 数据源在单独的模块中
-        from smart_threshold.datasource.timescaledb_client import TimescaleDBDataSource
-        assert isinstance(ds, TimescaleDBDataSource)
+
+    def test_init(self, timescaledb_config):
+        """测试初始化"""
+        client = TimescaleDBDataSource(timescaledb_config)
+        assert client.config == timescaledb_config
+        assert client._conn is None
+
+    def test_parse_url(self, timescaledb_config):
+        """测试 URL 解析"""
+        client = TimescaleDBDataSource(timescaledb_config)
+        assert client._db_host == "localhost"
+        assert client._db_port == 5432
+        assert client._db_name == "postgres"
 
 
 class TestTimeRange:

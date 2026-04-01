@@ -15,11 +15,12 @@ from fastapi.middleware.cors import CORSMiddleware
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from backend.app.routers import datasources_router, models_router, predictions_router
+from backend.app.routers import models_router, predictions_router
 from backend.app.routers.algorithms import router as algorithms_router
 from backend.app.routers.pipelines import router as pipelines_router
 from backend.app.routers.thresholds import router as thresholds_router
 from backend.app.routers.check import router as check_router
+from backend.app.routers.datasource import router as datasource_router
 
 
 @asynccontextmanager
@@ -79,9 +80,9 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 # Include routers
-app.include_router(datasources_router, prefix="/api/v1/datasources", tags=["datasources"])
 app.include_router(models_router, prefix="/api/v1/models", tags=["models"])
 app.include_router(predictions_router, prefix="/api/v1/predictions", tags=["predictions"])
+app.include_router(datasource_router, prefix="/api/v1", tags=["datasources"])
 
 # New routers for pipeline system
 app.include_router(algorithms_router, prefix="/api/v1/algorithms", tags=["algorithms"])

@@ -9,7 +9,6 @@ Orchestrates the 5-step training pipeline with full lifecycle management:
 5. Output Generation
 """
 
-import json
 import traceback
 from datetime import datetime
 from typing import Any, Optional
@@ -48,7 +47,6 @@ class PipelineExecutor:
         db: Session,
         redis: Optional[RedisClient] = None,
         lifecycle: Optional[TaskLifecycleManager] = None,
-        datasource_configs: Optional[dict[str, dict]] = None,
     ):
         """
         Initialize executor.
@@ -58,13 +56,11 @@ class PipelineExecutor:
             db: Database session
             redis: Redis client (optional, will create if not provided)
             lifecycle: Lifecycle manager (optional, will create if not provided)
-            datasource_configs: Map of datasource_id -> config
         """
         self.pipeline = pipeline
         self.db = db
         self.redis = redis or get_redis()
         self.lifecycle = lifecycle or get_lifecycle_manager()
-        self.datasource_configs = datasource_configs or {}
 
         # Internal state
         self._raw_data = None
@@ -189,14 +185,10 @@ class PipelineExecutor:
         """Step 1: Fetch data from TSDB."""
         job.current_step = "fetching_data"
         job.progress = 10
-        self._log("Fetching data from datasource")
+        self._log("Fetching data from TimescaleDB")
 
-        # Get datasource config
-        datasource_config = self.datasource_configs.get(self.pipeline.datasource_id, {})
-
-        # Fetch data
+        # Fetch data using global TimescaleDB client
         self._raw_data, error = fetch_data(
-            datasource_config=datasource_config,
             metric_id=self.pipeline.metric_id,
             train_start=self.pipeline.train_start,
             train_end=self.pipeline.train_end,
@@ -323,6 +315,9 @@ class PipelineExecutor:
             prediction=self._prediction,
             train_data_stats=self._train_stats,
             validation_metrics=self._validation_metrics,
+            train_data=self._cleaned_data,
+            train_end=self.pipeline.train_end,
+            step=self.pipeline.step,
         )
 
         # Store results in job
@@ -369,20 +364,10 @@ def run_pipeline(
         if not job:
             raise ValueError(f"Job not found: {job_id}")
 
-        # Load datasource configs from datasources router
-        from backend.app.routers.datasources import _load_datasources
-        datasource_configs_raw = _load_datasources()
-
-        # Convert DataSourceConfigResponse to dict format
-        datasource_configs = {}
-        for ds_id, ds_config in datasource_configs_raw.items():
-            datasource_configs[ds_id] = ds_config.model_dump()
-
         # Execute
         executor = PipelineExecutor(
             pipeline=pipeline,
             db=db,
-            datasource_configs=datasource_configs,
         )
         job = executor.execute(job)
 

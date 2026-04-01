@@ -105,7 +105,7 @@ const Predict = {
         // Show config section
         document.getElementById('predict-config-section').style.display = 'block';
 
-        // Auto set training range (80% of data)
+        // Auto set training range (full data range)
         this.autoTrainRange(data);
     },
 
@@ -142,12 +142,11 @@ const Predict = {
     },
 
     /**
-     * Auto set training range (80% of data)
+     * Auto set training range (full data range)
      */
     autoTrainRange(data) {
-        const splitIdx = Math.floor(data.timestamps.length * 0.8);
         const startDate = new Date(data.timestamps[0]);
-        const endDate = new Date(data.timestamps[splitIdx]);
+        const endDate = new Date(data.timestamps[data.timestamps.length - 1]);
 
         // Update dataQuery state
         this.dataQuery.state.trainStart = startDate.toISOString();
@@ -221,7 +220,6 @@ const Predict = {
 
         try {
             const params = {
-                datasource_id: this.dataQuery.getDataSourceId(),
                 metric_id: this.dataQuery.getMetric(),
                 endpoint: this.dataQuery.getEndpoint(),
                 train_start: trainStart,
@@ -469,7 +467,7 @@ const Predict = {
 
         // Reset data query state and reload
         this.dataQuery.reset();
-        this.dataQuery.loadDataSources();
+        this.dataQuery.loadData();
     },
 };
 

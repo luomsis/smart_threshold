@@ -26,7 +26,6 @@ from backend.app.schemas import (
     ModelInfo,
 )
 from smart_threshold.config.model_config import get_model_config_manager
-from backend.app.routers.datasources import _datasources
 
 router = APIRouter()
 
@@ -84,26 +83,13 @@ def get_algorithm_from_model(pipeline: Pipeline) -> str:
     return pipeline.algorithm
 
 
-def get_datasource_name(datasource_id: str) -> Optional[str]:
-    """Get data source name by ID from in-memory storage."""
-    if not datasource_id:
-        return None
-    ds = _datasources.get(datasource_id)
-    return ds.name if ds else None
-
-
 def pipeline_to_response(pipeline: Pipeline, db: Session = None) -> PipelineResponse:
     """Convert Pipeline model to response schema."""
-    # Get datasource name from in-memory storage
-    datasource_name = get_datasource_name(pipeline.datasource_id)
-
     return PipelineResponse(
         id=pipeline.id,
         name=pipeline.name,
         description=pipeline.description,
         metric_id=pipeline.metric_id,
-        datasource_id=pipeline.datasource_id,
-        datasource_name=datasource_name,
         endpoint=pipeline.endpoint,
         labels=pipeline.labels or {},
         train_start=pipeline.train_start,
@@ -189,7 +175,6 @@ async def create_pipeline(request: PipelineCreate, db: Session = Depends(get_db)
         name=request.name,
         description=request.description,
         metric_id=request.metric_id,
-        datasource_id=request.datasource_id,
         endpoint=request.endpoint,
         labels=request.labels,
         train_start=request.train_start,

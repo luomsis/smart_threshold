@@ -1,13 +1,9 @@
 """
 Datasource 模块
 
-提供 Prometheus 和 TimescaleDB 数据源集成功能。
+提供 TimescaleDB 数据源集成功能。
 """
 
-from smart_threshold.datasource.prometheus_client import (
-    PrometheusDataSource,
-    create_datasource,
-)
 from smart_threshold.datasource.timescaledb_client import TimescaleDBDataSource
 from smart_threshold.datasource.models import (
     DataSourceConfig,
@@ -21,9 +17,7 @@ from smart_threshold.datasource.models import (
 )
 
 __all__ = [
-    "PrometheusDataSource",
     "TimescaleDBDataSource",
-    "create_datasource",
     "DataSourceConfig",
     "DataSourceType",
     "MetricQuery",

@@ -16,7 +16,6 @@ const App = {
         // Initialize page-specific components
         await Predict.init();
         await Models.init();
-        await DataSources.init();
         await Pipelines.init();
         await Jobs.init();
 
@@ -66,8 +65,6 @@ const App = {
             Predict.refresh();
         } else if (page === 'models') {
             Models.refresh();
-        } else if (page === 'datasources') {
-            DataSources.refresh();
         } else if (page === 'pipelines') {
             Pipelines.refresh();
         } else if (page === 'jobs') {

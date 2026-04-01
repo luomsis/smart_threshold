@@ -28,8 +28,8 @@ class Pipeline(Base):
     description: Mapped[str] = mapped_column(Text, default="")
 
     # Data source configuration
+    datasource_id: Mapped[str] = mapped_column(String(100), default="default", nullable=False)
     metric_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    datasource_id: Mapped[str] = mapped_column(String(36), nullable=False)
     endpoint: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     labels: Mapped[dict[str, str]] = mapped_column(JSON, default=dict)
 

@@ -233,10 +233,8 @@ const Pipelines = {
         document.getElementById('edit-pipeline-name').value = pipeline.name || '';
         document.getElementById('edit-pipeline-desc').value = pipeline.description || '';
 
-        // Set data source and wait for endpoints/metrics to load
-        if (pipeline.datasource_id) {
-            await this.dataQuery.setDataSource(pipeline.datasource_id);
-        }
+        // Load data
+        await this.dataQuery.loadData();
 
         // Set endpoint if exists
         if (pipeline.endpoint) {
@@ -549,14 +547,18 @@ const Pipelines = {
         document.getElementById('edit-pipeline-stat-mean').textContent = Helpers.formatNumber(values.reduce((a, b) => a + b, 0) / values.length);
         document.getElementById('edit-pipeline-stats-panel').style.display = 'block';
 
-        // Auto set train range to full query range if not already set
+        // Always sync train range with query range when query changes
         const trainStartInput = document.getElementById('edit-pipeline-train-start');
         const trainEndInput = document.getElementById('edit-pipeline-train-end');
-        if (data.timestamps.length > 0 && (!trainStartInput.value || !trainEndInput.value)) {
-            const startDate = new Date(data.timestamps[0]);
-            const endDate = new Date(data.timestamps[data.timestamps.length - 1]);
-            trainStartInput.value = Helpers.formatDateOnly(startDate);
-            trainEndInput.value = Helpers.formatDateOnly(endDate);
+        if (data.timestamps.length > 0) {
+            const queryStart = new Date(data.timestamps[0]);
+            const queryEnd = new Date(data.timestamps[data.timestamps.length - 1]);
+            trainStartInput.value = Helpers.formatDateOnly(queryStart);
+            trainEndInput.value = Helpers.formatDateOnly(queryEnd);
+
+            // Update dataQuery state to reflect the synced range
+            this.dataQuery.state.trainStart = queryStart.toISOString();
+            this.dataQuery.state.trainEnd = queryEnd.toISOString();
         }
 
         // Get train range from inputs for chart display
@@ -658,7 +660,7 @@ const Pipelines = {
         const data = {
             name: document.getElementById('edit-pipeline-name').value,
             description: document.getElementById('edit-pipeline-desc').value,
-            datasource_id: this.dataQuery.getDataSourceId(),
+            datasource_id: 'default',
             endpoint: this.dataQuery.getEndpoint(),
             metric_id: this.dataQuery.getMetric(),
             model_id: modelId,
@@ -681,7 +683,7 @@ const Pipelines = {
             Helpers.showLoading();
             const data = this.collectFormData();
 
-            if (!data.name || !data.datasource_id || !data.metric_id || !data.model_id) {
+            if (!data.name || !data.metric_id || !data.model_id) {
                 Helpers.showToast('请填写所有必填字段', 'error');
                 return;
             }
@@ -821,18 +823,8 @@ const Pipelines = {
                     </div>
                     <div class="pipeline-detail-row">
                         <div class="pipeline-detail-item">
-                            <span class="detail-label">数据源</span>
-                            <span class="detail-value">${pipeline.datasource_name || pipeline.datasource_id || '-'}</span>
-                        </div>
-                        <div class="pipeline-detail-item">
                             <span class="detail-label">Endpoint</span>
                             <span class="detail-value">${pipeline.endpoint || '-'}</span>
-                        </div>
-                    </div>
-                    <div class="pipeline-detail-row">
-                        <div class="pipeline-detail-item">
-                            <span class="detail-label">指标 ID</span>
-                            <span class="detail-value">${pipeline.metric_id}</span>
                         </div>
                         <div class="pipeline-detail-item">
                             <span class="detail-label">采样间隔</span>
@@ -841,9 +833,15 @@ const Pipelines = {
                     </div>
                     <div class="pipeline-detail-row">
                         <div class="pipeline-detail-item">
+                            <span class="detail-label">指标 ID</span>
+                            <span class="detail-value">${pipeline.metric_id}</span>
+                        </div>
+                        <div class="pipeline-detail-item">
                             <span class="detail-label">模型</span>
                             <span class="detail-value algo-badge">${modelName}</span>
                         </div>
+                    </div>
+                    <div class="pipeline-detail-row">
                         <div class="pipeline-detail-item">
                             <span class="detail-label">算法类型</span>
                             <span class="detail-value"><span class="model-type-badge ${pipeline.algorithm}">${pipeline.algorithm || '-'}</span></span>
@@ -1061,60 +1059,157 @@ const Pipelines = {
         if (!chartDom || !previewData.timestamps) return;
 
         // Prepare data for Charts component
-        const timestamps = previewData.timestamps.slice(0, 480);
+        const timestamps = previewData.timestamps || [];
         const predicted = previewData.predicted || [];
         const upper = previewData.upper || [];
         const lower = previewData.lower || [];
+        const trainTimestamps = previewData.train_timestamps || [];
+        const trainValues = previewData.train_values || [];
+
+        // Check timestamp continuity between train and predict
+        let gapInfo = null;
+        if (trainTimestamps.length > 0 && timestamps.length > 0) {
+            const lastTrainTs = new Date(trainTimestamps[trainTimestamps.length - 1]);
+            const firstPredictTs = new Date(timestamps[0]);
+            const gapMinutes = (firstPredictTs - lastTrainTs) / 60000;
+
+            // Use gap_minutes from backend if available (more accurate)
+            const backendGap = previewData.gap_minutes;
+            const actualGap = backendGap !== undefined ? backendGap : gapMinutes;
+
+            // Expected step in minutes (parse from data or assume 1m)
+            const expectedStep = 1;  // Default 1 minute
+
+            // If gap is larger than expected step, there's a discontinuity
+            if (actualGap > expectedStep * 2) {
+                gapInfo = {
+                    lastTrainTs: trainTimestamps[trainTimestamps.length - 1],
+                    firstPredictTs: timestamps[0],
+                    gapMinutes: actualGap,
+                };
+            }
+        }
 
         // Create chart using Charts component with base options
         const chart = Charts.getChart('job-preview-chart');
         if (!chart) return;
 
+        // Merge timestamps for unified xAxis (handle gap if exists)
+        let allTimestamps;
+        if (gapInfo) {
+            // Include gap point for visual continuity
+            allTimestamps = [...trainTimestamps, gapInfo.firstPredictTs, ...timestamps];
+        } else {
+            allTimestamps = [...trainTimestamps, ...timestamps];
+        }
+
+        // Build timestamp to index mapping
+        const timestampToIdx = new Map();
+        allTimestamps.forEach((ts, i) => {
+            timestampToIdx.set(ts, i);
+        });
+
         const series = [];
 
-        // Predicted values line
-        series.push({
-            name: '预测值',
-            type: 'line',
-            data: predicted.slice(0, timestamps.length),
-            smooth: true,
-            symbol: 'none',
-            lineStyle: { color: '#56a4ff', width: 2 },
-            itemStyle: { color: '#56a4ff' },
-            z: 10,
-        });
+        // Original training data series
+        if (trainTimestamps.length > 0 && trainValues.length > 0) {
+            const originalData = new Array(allTimestamps.length).fill(null);
+            trainTimestamps.forEach((ts, i) => {
+                const idx = timestampToIdx.get(ts);
+                if (idx !== undefined) {
+                    originalData[idx] = trainValues[i];
+                }
+            });
+
+            series.push({
+                name: '原始数据',
+                type: 'line',
+                data: originalData,
+                smooth: true,
+                symbol: 'none',
+                lineStyle: { color: '#56a4ff', width: 2 },
+                itemStyle: { color: '#56a4ff' },
+                z: 10,
+            });
+        }
+
+        // Predicted values series
+        if (predicted.length > 0) {
+            const predictData = new Array(allTimestamps.length).fill(null);
+            timestamps.forEach((ts, i) => {
+                const idx = timestampToIdx.get(ts);
+                if (idx !== undefined && i < predicted.length) {
+                    predictData[idx] = predicted[i];
+                }
+            });
+
+            series.push({
+                name: '预测值',
+                type: 'line',
+                data: predictData,
+                smooth: true,
+                symbol: 'none',
+                lineStyle: { color: '#f2cc0c', width: 2 },
+                itemStyle: { color: '#f2cc0c' },
+                z: 11,
+            });
+        }
 
         // Upper bound (confidence interval)
         if (upper.length > 0) {
+            const upperData = new Array(allTimestamps.length).fill(null);
+            timestamps.forEach((ts, i) => {
+                const idx = timestampToIdx.get(ts);
+                if (idx !== undefined && i < upper.length) {
+                    upperData[idx] = upper[i];
+                }
+            });
+
             series.push({
                 name: '上限',
                 type: 'line',
-                data: upper.slice(0, timestamps.length),
+                data: upperData,
                 symbol: 'none',
-                lineStyle: { color: '#73bf69', width: 1, type: 'dashed' },
-                itemStyle: { color: '#73bf69' },
+                lineStyle: { color: '#ffffff', width: 1.5, type: 'dashed' },
+                itemStyle: { color: '#ffffff' },
                 z: 5,
             });
         }
 
         // Lower bound (confidence interval)
         if (lower.length > 0) {
+            const lowerData = new Array(allTimestamps.length).fill(null);
+            timestamps.forEach((ts, i) => {
+                const idx = timestampToIdx.get(ts);
+                if (idx !== undefined && i < lower.length) {
+                    lowerData[idx] = lower[i];
+                }
+            });
+
             series.push({
                 name: '下限',
                 type: 'line',
-                data: lower.slice(0, timestamps.length),
+                data: lowerData,
                 symbol: 'none',
-                lineStyle: { color: '#73bf69', width: 1, type: 'dashed' },
-                itemStyle: { color: '#73bf69' },
+                lineStyle: { color: '#ffffff', width: 1.5, type: 'dashed' },
+                itemStyle: { color: '#ffffff' },
                 z: 5,
             });
         }
 
         // Confidence interval area (between upper and lower)
         if (upper.length > 0 && lower.length > 0) {
-            // For stacked area chart to show confidence band
-            const lowerBaseline = lower.slice(0, timestamps.length);
-            const diffData = upper.slice(0, timestamps.length).map((u, i) => u - lowerBaseline[i]);
+            // Build confidence band data aligned with prediction timestamps
+            const lowerBaseline = new Array(allTimestamps.length).fill(null);
+            const diffData = new Array(allTimestamps.length).fill(null);
+
+            timestamps.forEach((ts, i) => {
+                const idx = timestampToIdx.get(ts);
+                if (idx !== undefined && i < upper.length && i < lower.length) {
+                    lowerBaseline[idx] = lower[i];
+                    diffData[idx] = upper[i] - lower[i];
+                }
+            });
 
             series.push({
                 name: '下限基线',
@@ -1138,32 +1233,29 @@ const Pipelines = {
                 areaStyle: { color: 'rgba(115, 207, 105, 0.2)' },
                 stack: 'confidence',
                 z: 3,
-                tooltip: {
-                    formatter: function(params) {
-                        const idx = params.dataIndex;
-                        if (idx !== undefined && upper[idx] !== undefined && lower[idx] !== undefined) {
-                            return `置信区间: [${lower[idx].toFixed(2)}, ${upper[idx].toFixed(2)}]`;
-                        }
-                        return '置信区间';
-                    }
-                },
             });
         }
 
-        // Training range mark area
-        if (trainStart && trainEnd) {
-            series[0].markArea = {
-                silent: true,
-                itemStyle: { color: 'rgba(250, 173, 20, 0.15)' },
-                data: [[
-                    { xAxis: trainStart },
-                    { xAxis: trainEnd },
-                ]],
-            };
+        // Training range mark area on original data series
+        if (trainStart && trainEnd && series.length > 0) {
+            const trainStartTs = Helpers.formatChartDate(trainStart);
+            const trainEndTs = Helpers.formatChartDate(trainEnd);
+            // Find the series for original data (first series if it exists)
+            const originalSeries = series.find(s => s.name === '原始数据');
+            if (originalSeries) {
+                originalSeries.markArea = {
+                    silent: true,
+                    itemStyle: { color: 'rgba(250, 173, 20, 0.15)' },
+                    data: [[
+                        { xAxis: trainStartTs },
+                        { xAxis: trainEndTs },
+                    ]],
+                };
+            }
         }
 
         const chartOptions = Charts.getBaseChartOptions();
-        chartOptions.xAxis.data = timestamps;
+        chartOptions.xAxis.data = allTimestamps;
         chartOptions.xAxis.axisLabel = {
             color: '#8b9199',
             formatter: (value) => Helpers.formatChartDate(value),
@@ -1171,7 +1263,7 @@ const Pipelines = {
         chartOptions.yAxis.axisLabel = { color: '#8b9199' };
         chartOptions.series = series;
         chartOptions.legend = {
-            data: ['预测值', '上限', '下限', '置信区间'],
+            data: ['原始数据', '预测值', '上限', '下限', '置信区间'],
             top: 10,
             textStyle: { color: '#8b9199' },
         };

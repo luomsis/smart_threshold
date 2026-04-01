@@ -235,39 +235,6 @@ async def compare_models(request: ModelComparisonRequest):
     )
 
 
-def _get_datasource_config(ds_id: str) -> Dict[str, Any]:
-    """Get datasource configuration by ID."""
-    import json
-    from pathlib import Path
-
-    CONFIG_DIR = Path(__file__).parent.parent.parent.parent / "config"
-    DATASOURCES_FILE = CONFIG_DIR / "datasources.json"
-
-    if not DATASOURCES_FILE.exists():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"DataSource {ds_id} not found (no config file)"
-        )
-
-    try:
-        with open(DATASOURCES_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-
-        for ds in data:
-            if ds.get("id") == ds_id:
-                return ds
-
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"DataSource {ds_id} not found"
-        )
-    except json.JSONDecodeError:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to parse datasources config"
-        )
-
-
 @router.post(
     "/direct",
     response_model=DirectPredictResponse,
@@ -290,10 +257,7 @@ async def direct_predict(request: DirectPredictRequest):
         "static": "moving_average",
     }
 
-    # Step 1: Get datasource config
-    ds_config = _get_datasource_config(request.datasource_id)
-
-    # Step 2: Get model config
+    # Step 1: Get model config
     manager = get_model_config_manager()
     model_config = manager.get_config(request.model_id)
 
@@ -303,9 +267,8 @@ async def direct_predict(request: DirectPredictRequest):
             detail=f"Model {request.model_id} not found"
         )
 
-    # Step 3: Fetch data
+    # Step 2: Fetch data
     data, fetch_error = fetch_data(
-        datasource_config=ds_config,
         metric_id=request.metric_id,
         train_start=request.train_start,
         train_end=request.train_end,
@@ -320,7 +283,7 @@ async def direct_predict(request: DirectPredictRequest):
             detail=fetch_error or "Failed to fetch data"
         )
 
-    # Step 4: Clean data
+    # Step 3: Clean data
     exclude_periods = [p.model_dump() for p in request.exclude_periods] if request.exclude_periods else None
     outlier_detection = request.outlier_detection.model_dump() if request.outlier_detection else None
     smoothing = request.smoothing.model_dump() if request.smoothing else None
@@ -332,7 +295,7 @@ async def direct_predict(request: DirectPredictRequest):
         smoothing=smoothing,
     )
 
-    # Step 5: Calculate predict periods
+    # Step 4: Calculate predict periods
     if request.predict_end:
         # Calculate periods from predict_end
         freq = parse_step_to_freq(request.step)
@@ -354,7 +317,7 @@ async def direct_predict(request: DirectPredictRequest):
         step_minutes = _parse_step_to_minutes(request.step)
         periods = int(24 * 60 / step_minutes)  # 24 hours worth of points
 
-    # Step 6: Get effective algorithm params
+    # Step 5: Get effective algorithm params
     base_params = model_config.get_params()
     if request.override_params:
         effective_params = {**base_params, **request.override_params}
@@ -365,7 +328,7 @@ async def direct_predict(request: DirectPredictRequest):
     model_type_value = model_config.model_type.value
     algorithm = MODEL_TYPE_TO_ALGORITHM.get(model_type_value, model_type_value)
 
-    # Step 7: Train model and predict
+    # Step 6: Train model and predict
     model, result, train_error = train_model(
         data=cleaned_data,
         algorithm=algorithm,
@@ -380,7 +343,7 @@ async def direct_predict(request: DirectPredictRequest):
             detail=train_error or "Training failed"
         )
 
-    # Step 8: Build response
+    # Step 7: Build response
     execution_time = time.time() - start_time
 
     # Convert original data to response format

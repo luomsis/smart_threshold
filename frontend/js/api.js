@@ -44,91 +44,34 @@ const API = {
         }
     },
 
-    // ==================== Data Sources ====================
+    // ==================== Global Data Source ====================
 
     /**
-     * List all data sources
+     * Get data time range (global TimescaleDB)
      */
-    async listDataSources() {
-        return this.request('GET', '/datasources');
-    },
-
-    /**
-     * Get default data source
-     */
-    async getDefaultDataSource() {
-        return this.request('GET', '/datasources/default');
-    },
-
-    /**
-     * Get data source by ID
-     */
-    async getDataSource(id) {
-        return this.request('GET', `/datasources/${id}`);
-    },
-
-    /**
-     * Get data time range
-     */
-    async getTimeRange(dataSourceId, endpoint = null) {
+    async getTimeRange(endpoint = null) {
         const params = endpoint ? `?endpoint=${encodeURIComponent(endpoint)}` : '';
-        return this.request('GET', `/datasources/${dataSourceId}/time-range${params}`);
+        return this.request('GET', `/time-range${params}`);
     },
 
     /**
-     * Create data source
+     * List endpoints (global TimescaleDB)
      */
-    async createDataSource(data) {
-        return this.request('POST', '/datasources', { body: data });
+    async listEndpoints() {
+        return this.request('GET', '/endpoints');
     },
 
     /**
-     * Update data source
+     * List metrics (global TimescaleDB)
      */
-    async updateDataSource(id, data) {
-        return this.request('PUT', `/datasources/${id}`, { body: data });
+    async listMetrics() {
+        return this.request('GET', '/metrics');
     },
 
     /**
-     * Delete data source
+     * Query data (global TimescaleDB)
      */
-    async deleteDataSource(id) {
-        return this.request('DELETE', `/datasources/${id}`);
-    },
-
-    /**
-     * List endpoints (endpoint label values) from data source
-     */
-    async listEndpoints(dataSourceId) {
-        return this.request('GET', `/datasources/${dataSourceId}/endpoints`);
-    },
-
-    
-    /**
-     * List metrics from data source
-     */
-    async listMetrics(dataSourceId) {
-        return this.request('GET', `/datasources/${dataSourceId}/metrics`);
-    },
-
-    /**
-     * List labels from data source
-     */
-    async listLabels(dataSourceId) {
-        return this.request('GET', `/datasources/${dataSourceId}/labels`);
-    },
-
-    /**
-     * Get label values
-     */
-    async getLabelValues(dataSourceId, labelName) {
-        return this.request('GET', `/datasources/${dataSourceId}/labels/${encodeURIComponent(labelName)}`);
-    },
-
-    /**
-     * Query data
-     */
-    async queryData(dataSourceId, query, timeRange, endpoint = null) {
+    async queryData(query, timeRange, endpoint = null) {
         const body = {
             query,
             time_range: timeRange,
@@ -136,7 +79,7 @@ const API = {
         if (endpoint) {
             body.endpoint = endpoint;
         }
-        return this.request('POST', `/datasources/${dataSourceId}/query`, { body });
+        return this.request('POST', '/query', { body });
     },
 
     // ==================== Models ====================
