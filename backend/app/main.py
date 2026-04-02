@@ -6,10 +6,11 @@ import sys
 from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -48,10 +49,15 @@ app = FastAPI(
     description="DB 监控算法自动选型系统 API",
     version="0.1.0",
     lifespan=lifespan,
-    docs_url="/api/docs",
+    docs_url=None,  # Disable default docs, use custom
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
 )
+
+# Mount static files for Swagger UI
+STATIC_DIR = Path(__file__).parent.parent / "static"
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # CORS middleware - must be added before routers
 app.add_middleware(
@@ -113,3 +119,40 @@ async def root():
         "version": "0.1.0",
         "docs": "/api/docs",
     }
+
+
+@app.get("/api/docs", include_in_schema=False)
+async def custom_swagger_ui():
+    """Custom Swagger UI with local resources."""
+    return HTMLResponse(content="""
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link type="text/css" rel="stylesheet" href="/static/swagger-ui/swagger-ui.css">
+<title>SmartThreshold API - Swagger UI</title>
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="/static/swagger-ui/swagger-ui-bundle.js"></script>
+<script src="/static/swagger-ui/swagger-ui-standalone-preset.js"></script>
+<script>
+window.onload = function() {
+    const ui = SwaggerUIBundle({
+        url: '/api/openapi.json',
+        dom_id: '#swagger-ui',
+        presets: [
+            SwaggerUIBundle.presets.apis,
+            SwaggerUIStandalonePreset
+        ],
+        layout: "StandaloneLayout",
+        deepLinking: true,
+        showExtensions: true,
+        showCommonExtensions: true
+    });
+}
+</script>
+</body>
+</html>
+""")

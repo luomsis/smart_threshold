@@ -113,8 +113,8 @@ api_start() {
 
     setup_env
 
-    log_info "Starting API server..."
-    log_info "API Documentation: http://localhost:$PORT/api/docs"
+    log_info "Starting API server on $HOST:$PORT..."
+    log_info "API Documentation: http://$HOST:$PORT/api/docs"
 
     nohup uvicorn backend.app.main:app --host $HOST --port $PORT > "$API_LOG_FILE" 2>&1 &
     local pid=$!
@@ -161,8 +161,8 @@ api_status() {
     if is_running "$API_PID_FILE"; then
         local pid=$(get_pid "$API_PID_FILE")
         log_info "API server: ${GREEN}running${NC} (PID: $pid)"
-        log_info "  URL: http://localhost:$PORT"
-        log_info "  Docs: http://localhost:$PORT/api/docs"
+        log_info "  Listen: http://$HOST:$PORT"
+        log_info "  Docs: http://$HOST:$PORT/api/docs"
         log_info "  Log: $API_LOG_FILE"
         return 0
     else
@@ -306,8 +306,8 @@ dev() {
 
     setup_env
 
-    log_info "Starting API server in development mode (with auto-reload)..."
-    log_info "API Documentation: http://localhost:$PORT/api/docs"
+    log_info "Starting API server in development mode on $HOST:$PORT..."
+    log_info "API Documentation: http://$HOST:$PORT/api/docs"
 
     uvicorn backend.app.main:app --reload --host $HOST --port $PORT
 }
