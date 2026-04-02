@@ -8,7 +8,8 @@ PID_FILE="$SCRIPT_DIR/.frontend.pid"
 LOG_FILE="$SCRIPT_DIR/frontend.log"
 PORT="8011"
 # Default backend URL (can be overridden via command line or environment variable)
-BACKEND_URL="${BACKEND_URL:-http://localhost:8010}"
+# Use relative path to allow access from any host
+BACKEND_URL="${BACKEND_URL:-}"
 
 cd "$FRONTEND_DIR"
 

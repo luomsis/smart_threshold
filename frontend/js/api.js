@@ -3,14 +3,20 @@
  */
 
 const API = {
-    // Base URL - from config.js or default to localhost:8010
-    baseUrl: window.BACKEND_URL || 'http://localhost:8010',
+    // Base URL - from config.js, or dynamically use current host with port 8010
+    get baseUrl() {
+        if (window.BACKEND_URL) {
+            return window.BACKEND_URL;
+        }
+        // Dynamic: use current host with backend port 8010
+        return `${window.location.protocol}//${window.location.hostname}:8010`;
+    },
 
     /**
      * Set base URL
      */
     setBaseUrl(url) {
-        this.baseUrl = url.replace(/\/$/, '');
+        this._baseUrl = url.replace(/\/$/, '');
     },
 
     /**
